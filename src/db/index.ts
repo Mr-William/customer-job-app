@@ -42,6 +42,19 @@ async function ensureDefaultAdmin() {
       .limit(1);
 
     if (existingAdmin) {
+      if (existingAdmin.email === email) {
+        await db
+          .update(users)
+          .set({
+            firstName: process.env.DEFAULT_ADMIN_FIRST_NAME?.trim() || "Admin",
+            lastName: process.env.DEFAULT_ADMIN_LAST_NAME?.trim() || "User",
+            passwordHash: await hashPassword(password),
+            approved: true,
+            approvalToken: null,
+            role: "admin",
+          })
+          .where(eq(users.id, existingAdmin.id));
+      }
       return;
     }
 
