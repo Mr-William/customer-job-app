@@ -25,7 +25,7 @@ interface Customer {
   name: string | null;
   firstName: string | null;
   lastName: string | null;
-  phone: string;
+  phone: string | null;
   email: string | null;
   jobAddress: string;
   createdAt: string;
@@ -88,9 +88,9 @@ export default function CustomersPage() {
     setEditName(c.name || "");
     setEditFirstName(c.firstName || "");
     setEditLastName(c.lastName || "");
-    setEditPhone(c.phone);
+    setEditPhone(c.phone || "");
     setEditEmail(c.email || "");
-    setEditAddress(c.jobAddress);
+    setEditAddress(c.jobAddress || "");
     setEditError("");
   }
 
@@ -211,11 +211,11 @@ export default function CustomersPage() {
                   </div>
                   <div className="mt-2 space-y-1">
                     <div className="text-sm" style={{ color: "var(--text-secondary)" }}>
-                      📞 {customer.phone}
+                      📞 {customer.phone || <span style={{ color: "var(--text-muted)" }}>No phone</span>}
                       {customer.email && <span className="ml-4">✉️ {customer.email}</span>}
                     </div>
                     <div className="text-sm" style={{ color: "var(--text-secondary)" }}>
-                      📍 {customer.jobAddress}
+                      📍 {customer.jobAddress || <span style={{ color: "var(--text-muted)" }}>No address</span>}
                     </div>
                   </div>
                 </div>
