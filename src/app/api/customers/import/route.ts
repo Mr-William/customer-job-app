@@ -66,10 +66,10 @@ export async function POST(req: NextRequest) {
       const phone = pick(row, "phone", "phone number", "phonenumber", "phone_number", "mobile", "cell", "telephone");
       const email = pick(row, "email", "email address", "emailaddress", "email_address");
 
-      // Check required fields
+      // Name is the only required field — phone and address are optional so
+      // that partial records still import.
       const missing: string[] = [];
       if (!name) missing.push("Name");
-      if (!jobAddress) missing.push("Address");
 
       if (missing.length > 0) {
         skipped.push({
@@ -97,7 +97,8 @@ export async function POST(req: NextRequest) {
           lastName: null,
           phone: phone || null,
           email: email || null,
-          jobAddress,
+          // jobAddress is NOT NULL in the schema; store "" when absent
+          jobAddress: jobAddress || "",
         })
         .returning();
 

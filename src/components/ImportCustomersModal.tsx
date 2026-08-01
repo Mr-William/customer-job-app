@@ -158,12 +158,9 @@ export default function ImportCustomersModal({ onClose, onSuccess }: ImportCusto
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
-  const validRows = preview.filter(
-    (r) => parseName(r._raw) && r.jobAddress
-  );
-  const invalidRows = preview.filter(
-    (r) => !parseName(r._raw) || !r.jobAddress
-  );
+  // Only Name is required — phone and address are optional.
+  const validRows = preview.filter((r) => parseName(r._raw));
+  const invalidRows = preview.filter((r) => !parseName(r._raw));
 
   return (
     <div
@@ -254,10 +251,10 @@ export default function ImportCustomersModal({ onClose, onSuccess }: ImportCusto
                 {[
                   { field: "Name *", examples: "Name, Customer, Company, Business" },
                   { field: "Phone", examples: "Phone, Phone Number, Mobile, Cell (optional)" },
-                  { field: "Street Address *", examples: "Street Address, Street, Address" },
-                  { field: "City *", examples: "City" },
-                  { field: "State *", examples: "State, Province" },
-                  { field: "Zip *", examples: "Zip, Zip Code, Postal Code" },
+                  { field: "Street Address", examples: "Street Address, Street, Address (optional)" },
+                  { field: "City", examples: "City (optional)" },
+                  { field: "State", examples: "State, Province (optional)" },
+                  { field: "Zip", examples: "Zip, Zip Code, Postal Code (optional)" },
                   { field: "Country", examples: "Country (optional)" },
                   { field: "Email", examples: "Email, Email Address (optional)" },
                 ].map((col) => (
@@ -273,7 +270,7 @@ export default function ImportCustomersModal({ onClose, onSuccess }: ImportCusto
                 ))}
               </div>
               <p className="text-xs mt-3" style={{ color: "var(--text-muted)" }}>
-                Street Address, City, State, and Zip are combined automatically into the Job Address field. Name can be a person&apos;s full name or a business name.
+                Only <strong>Name</strong> is required — rows missing a phone number or address will still be imported, and you can fill those in later. Street Address, City, State, and Zip are combined automatically into the Job Address field. Name can be a person&apos;s full name or a business name.
               </p>
             </div>
           </div>
@@ -336,7 +333,7 @@ export default function ImportCustomersModal({ onClose, onSuccess }: ImportCusto
                 <tbody>
                   {preview.map((row, i) => {
                     const nameVal = parseName(row._raw);
-                    const isValid = nameVal && row.phone && row.jobAddress;
+                    const isValid = !!nameVal;
                     return (
                       <tr key={i}>
                         <td style={{ color: "var(--text-muted)" }}>{i + 2}</td>
@@ -348,13 +345,13 @@ export default function ImportCustomersModal({ onClose, onSuccess }: ImportCusto
                         <td>
                           {row.phone
                             ? row.phone
-                            : <span style={{ color: "var(--danger)" }}>—</span>}
+                            : <span style={{ color: "var(--text-muted)" }}>—</span>}
                         </td>
                         <td style={{ color: "var(--text-muted)" }}>{row.email || "—"}</td>
                         <td>
                           {row.jobAddress
                             ? <span style={{ maxWidth: "150px", display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.jobAddress}</span>
-                            : <span style={{ color: "var(--danger)" }}>—</span>}
+                            : <span style={{ color: "var(--text-muted)" }}>—</span>}
                         </td>
                         <td>
                           {isValid
@@ -370,7 +367,7 @@ export default function ImportCustomersModal({ onClose, onSuccess }: ImportCusto
 
             {validRows.length === 0 && (
               <div className="alert-error mb-4">
-                No valid rows found. Please check that your spreadsheet has the correct column names.
+                No valid rows found — every row is missing a Name. Please check that your spreadsheet has a Name, Customer, Company, or Business column.
               </div>
             )}
 
