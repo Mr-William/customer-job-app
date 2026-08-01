@@ -122,10 +122,21 @@ Edit the file to match your setup:
 DATABASE_URL=postgresql://jobtracker:YOUR_STRONG_PASSWORD@localhost:5432/jobtracker_db
 JWT_SECRET=generate-a-long-random-string-here
 NEXT_PUBLIC_APP_URL=https://jobs.yourdomain.com
+
+# Default admin account (auto-created on first run)
 DEFAULT_ADMIN_EMAIL=admin@yourdomain.com
 DEFAULT_ADMIN_PASSWORD=ChangeMe_StrongPassword_123!
 DEFAULT_ADMIN_FIRST_NAME=System
 DEFAULT_ADMIN_LAST_NAME=Admin
+
+# SMTP Email Configuration (for user approval workflow)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com
+SMTP_PASS=your-app-password
+
+# Where approval request emails are sent
+ADMIN_EMAIL=admin@yourdomain.com
 ```
 
 Generate a secure JWT secret:
@@ -135,6 +146,46 @@ node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
 ```
 
 > ⚠️ Replace `YOUR_STRONG_PASSWORD`, the JWT secret, domain URL, and admin credentials with your own values.
+
+### SMTP Email Setup (Approval Workflow)
+
+When a new user registers, the app sends an email to the admin with Approve/Deny links. Configure SMTP so these emails are actually delivered.
+
+**Option A — Gmail (easiest)**
+
+1. Enable 2FA on your Google account at https://myaccount.google.com/security
+2. Generate an App Password at https://myaccount.google.com/apppasswords
+3. Use these settings in your `.env`:
+
+```env
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com
+SMTP_PASS=your-16-char-app-password
+ADMIN_EMAIL=your-email@gmail.com
+```
+
+**Option B — Your domain's email**
+
+If your domain registrar provides email hosting:
+
+```env
+SMTP_HOST=mail.yourdomain.com
+SMTP_PORT=587
+SMTP_USER=jobs@yourdomain.com
+SMTP_PASS=your-email-password
+ADMIN_EMAIL=you@yourdomain.com
+```
+
+**Option C — Free SMTP relay services**
+
+| Provider | Free Tier | Sign Up |
+|---|---|---|
+| Brevo (Sendinblue) | 300 emails/day | https://www.brevo.com |
+| SendGrid | 100 emails/day | https://sendgrid.com |
+| Mailgun | 100 emails/day | https://www.mailgun.com |
+
+> **Without SMTP configured**, the app still works — approval/denial URLs are logged to the server console instead. You can copy them from `pm2 logs jobtracker` and paste them in your browser to approve users manually.
 
 ---
 
