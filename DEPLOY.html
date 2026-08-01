@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deployment Guide — Digital Revolution Job Tracker</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #1a1a1a;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 40px 50px;
+            background: #ffffff;
+        }
+        
+        h1 {
+            color: #f97316;
+            font-size: 2.5em;
+            margin-top: 0;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 3px solid #f97316;
+        }
+        
+        h2 {
+            color: #1a1a1a;
+            font-size: 1.8em;
+            margin-top: 40px;
+            margin-bottom: 15px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+        
+        h3 {
+            color: #1a1a1a;
+            font-size: 1.4em;
+            margin-top: 30px;
+            margin-bottom: 12px;
+        }
+        
+        h4 {
+            color: #4a4a4a;
+            font-size: 1.2em;
+            margin-top: 25px;
+            margin-bottom: 10px;
+        }
+        
+        p {
+            margin-bottom: 15px;
+            color: #4a4a4a;
+        }
+        
+        code {
+            background: #f5f5f5;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.9em;
+            color: #2d2d2d;
+        }
+        
+        pre {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 6px;
+            overflow-x: auto;
+            margin-bottom: 20px;
+            border-left: 4px solid #f97316;
+        }
+        
+        pre code {
+            background: none;
+            padding: 0;
+            display: block;
+            line-height: 1.5;
+        }
+        
+        ul, ol {
+            margin-bottom: 20px;
+            padding-left: 30px;
+        }
+        
+        li {
+            margin-bottom: 8px;
+            color: #4a4a4a;
+        }
+        
+        blockquote {
+            border-left: 4px solid #f97316;
+            padding-left: 20px;
+            margin: 20px 0;
+            color: #666;
+            font-style: italic;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 25px;
+            font-size: 0.95em;
+        }
+        
+        thead {
+            background: #f97316;
+            color: white;
+        }
+        
+        th {
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+        }
+        
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        tbody tr:nth-child(even) {
+            background: #f9f9f9;
+        }
+        
+        tbody tr:hover {
+            background: #f0f0f0;
+        }
+        
+        hr {
+            border: none;
+            border-top: 2px solid #e0e0e0;
+            margin: 40px 0;
+        }
+        
+        strong {
+            color: #1a1a1a;
+            font-weight: 600;
+        }
+        
+        em {
+            color: #666;
+        }
+        
+        a {
+            color: #0066cc;
+            text-decoration: none;
+        }
+        
+        a:hover {
+            text-decoration: underline;
+        }
+        
+        @media print {
+            body {
+                padding: 20px;
+            }
+            
+            h1, h2, h3, h4 {
+                page-break-after: avoid;
+            }
+            
+            pre, blockquote, table {
+                page-break-inside: avoid;
+            }
+        }
+        
+        .container {
+            background: white;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        
+        .header p {
+            color: #666;
+            font-size: 1.1em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Deployment Guide — Digital Revolution Job Tracker</h1>
+        
+        <p><strong>Target:</strong> Ubuntu Server 26.04 (fresh install)<br>
+        <strong>Access:</strong> Custom domain with HTTPS<br>
+        <strong>Source:</strong> Git clone from GitHub</p>
+        
+        <hr>
+        
+        <h2>Prerequisites</h2>
+        
+        <p>Before you start, make sure you have:</p>
+        
+        <ul>
+            <li>A domain name pointing to your server's public IP (A record, e.g. <code>jobs.yourdomain.com</code>)</li>
+            <li>Your GitHub repo is up to date:
+                <pre><code>git push origin arena/019fba35-customer-job-app</code></pre>
+            </li>
+            <li>SSH access to your Ubuntu server</li>
+        </ul>
+        
+        <hr>
+        
+        <h2>Step 1 — Initial Server Setup</h2>
+        
+        <p>SSH into your server and run the basics:</p>
+        
+        <pre><code># Update the system
+sudo apt update &amp;&amp; sudo apt upgrade -y
+
+# Install essential tools
+sudo apt install -y curl git ufw
+
+# Create a non-root user (skip if you already logged in as one)
+sudo adduser deploy
+sudo usermod -aG sudo deploy
+su - deploy</code></pre>
+        
+        <h3>Firewall — allow SSH, HTTP, HTTPS</h3>
+        
+        <pre><code>sudo ufw allow OpenSSH
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
+sudo ufw enable
+sudo ufw status</code></pre>
+        
+        <hr>
+        
+        <h2>Step 2 — Install Node.js 22 LTS</h2>
+        
+        <pre><code># Install NodeSource setup script and install Node.js 22
+curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+sudo apt install -y nodejs
+
+# Verify
+node -v   # should show v22.x
+npm -v</code></pre>
+        
+        <hr>
+        
+        <h2>Step 3 — Install PostgreSQL</h2>
+        
+        <pre><code>sudo apt install -y postgresql postgresql-contrib
+
+# Start and enable PostgreSQL
+sudo systemctl enable postgresql
+sudo systemctl start postgresql</code></pre>
+        
+        <h3>Create database and user</h3>
+        
+        <pre><code>sudo -u postgres psql</code></pre>
+        
+        <p>Run these SQL commands inside the psql prompt:</p>
+        
+        <pre><code>CREATE DATABASE jobtracker_db;
+CREATE USER jobtracker WITH ENCRYPTED PASSWORD 'CHANGE_THIS_TO_A_STRONG_PASSWORD';
+GRANT ALL PRIVILEGES ON DATABASE jobtracker_db TO jobtracker;
+
+-- Required for Drizzle ORM to manage schema
+\c jobtracker_db
+GRANT ALL ON SCHEMA public TO jobtracker;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO jobtracker;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO jobtracker;
+
+\q</code></pre>
+        
+        <blockquote>
+            ⚠️ <strong>Replace <code>CHANGE_THIS_TO_A_STRONG_PASSWORD</code></strong> with a strong, unique password.
+        </blockquote>
+        
+        <hr>
+        
+        <h2>Step 4 — Clone the Repository</h2>
+        
+        <pre><code>cd ~
+git clone https://github.com/Mr-William/customer-job-app.git
+cd customer-job-app</code></pre>
+        
+        <hr>
+        
+        <h2>Step 5 — Configure Environment Variables</h2>
+        
+        <pre><code>cd ~/customer-job-app
+cp .env.example .env
+nano .env</code></pre>
+        
+        <p>Edit the file to match your setup:</p>
+        
+        <pre><code>DATABASE_URL=postgresql://jobtracker:YOUR_STRONG_PASSWORD@localhost:5432/jobtracker_db
+JWT_SECRET=generate-a-long-random-string-here
+NEXT_PUBLIC_APP_URL=https://jobs.yourdomain.com
+DEFAULT_ADMIN_EMAIL=admin@yourdomain.com
+DEFAULT_ADMIN_PASSWORD=ChangeMe_StrongPassword_123!
+DEFAULT_ADMIN_FIRST_NAME=System
+DEFAULT_ADMIN_LAST_NAME=Admin</code></pre>
+        
+        <p>Generate a secure JWT secret:</p>
+        
+        <pre><code>node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"</code></pre>
+        
+        <blockquote>
+            ⚠️ Replace <code>YOUR_STRONG_PASSWORD</code>, the JWT secret, domain URL, and admin credentials with your own values.
+        </blockquote>
+        
+        <h3>SMTP Email Setup (Approval Workflow)</h3>
+        
+        <p>When a new user registers, the app sends an email to the admin with Approve/Deny links. Configure SMTP so these emails are actually delivered.</p>
+        
+        <h4>Option A — Gmail (easiest)</h4>
+        
+        <ol>
+            <li>Enable 2FA on your Google account at <a href="https://myaccount.google.com/security" target="_blank">https://myaccount.google.com/security</a></li>
+            <li>Generate an App Password at <a href="https://myaccount.google.com/apppasswords" target="_blank">https://myaccount.google.com/apppasswords</a></li>
+            <li>Use these settings in your <code>.env</code>:</li>
+        </ol>
+        
+        <pre><code>SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com
+SMTP_PASS=your-16-char-app-password
+ADMIN_EMAIL=your-email@gmail.com</code></pre>
+        
+        <h4>Option B — Your domain's email</h4>
+        
+        <p>If your domain registrar provides email hosting:</p>
+        
+        <pre><code>SMTP_HOST=mail.yourdomain.com
+SMTP_PORT=587
+SMTP_USER=jobs@yourdomain.com
+SMTP_PASS=your-email-password
+ADMIN_EMAIL=you@yourdomain.com</code></pre>
+        
+        <h4>Option C — Free SMTP relay services</h4>
+        
+        <table>
+            <thead>
+                <tr>
+                    <th>Provider</th>
+                    <th>Free Tier</th>
+                    <th>Sign Up</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Brevo (Sendinblue)</td>
+                    <td>300 emails/day</td>
+                    <td><a href="https://www.brevo.com" target="_blank">brevo.com</a></td>
+                </tr>
+                <tr>
+                    <td>SendGrid</td>
+                    <td>100 emails/day</td>
+                    <td><a href="https://sendgrid.com" target="_blank">sendgrid.com</a></td>
+                </tr>
+                <tr>
+                    <td>Mailgun</td>
+                    <td>100 emails/day</td>
+                    <td><a href="https://www.mailgun.com" target="_blank">mailgun.com</a></td>
+                </tr>
+            </tbody>
+        </table>
+        
+        <blockquote>
+            <strong>Without SMTP configured</strong>, the app still works — approval/denial URLs are logged to the server console instead. You can copy them from <code>pm2 logs jobtracker</code> and paste them in your browser to approve users manually.
+        </blockquote>
+        
+        <hr>
+        
+        <h2>Step 6 — Install Dependencies &amp; Set Up Database</h2>
+        
+        <pre><code>cd ~/customer-job-app
+npm install</code></pre>
+        
+        <h3>Generate and push the database schema with Drizzle</h3>
+        
+        <pre><code># Generate migration files from the schema
+npx drizzle-kit generate
+
+# Push the schema directly to the database
+npx drizzle-kit migrate</code></pre>
+        
+        <blockquote>
+            If <code>drizzle-kit migrate</code> doesn't apply (it looks for a migrations folder), you can alternatively use <code>npx drizzle-kit push</code> which syncs the schema directly.
+        </blockquote>
+        
+        <hr>
+        
+        <h2>Step 7 — Build the Application</h2>
+        
+        <pre><code>npm run build</code></pre>
+        
+        <p>This creates the optimized production build in <code>.next/</code>.</p>
+        
+        <hr>
+        
+        <h2>Step 8 — Set Up PM2 (Process Manager)</h2>
+        
+        <p>PM2 keeps your app running and auto-restarts it on crashes or server reboots.</p>
+        
+        <pre><code># Install PM2 globally
+sudo npm install -g pm2
+
+# Start the app
+pm2 start npm --name "jobtracker" -- start
+
+# Save PM2 config and set up auto-start on boot
+pm2 save
+pm2 startup
+# ^ Copy and run the command it outputs</code></pre>
+        
+        <h3>Useful PM2 commands</h3>
+        
+        <pre><code>pm2 status            # See running apps
+pm2 logs jobtracker   # View logs
+pm2 restart jobtracker  # Restart after updates
+pm2 stop jobtracker   # Stop the app</code></pre>
+        
+        <hr>
+        
+        <h2>Step 9 — Install &amp; Configure Nginx (Reverse Proxy)</h2>
+        
+        <pre><code>sudo apt install -y nginx
+
+sudo systemctl enable nginx
+sudo systemctl start nginx</code></pre>
+        
+        <p>Create a site config:</p>
+        
+        <pre><code>sudo nano /etc/nginx/sites-available/jobtracker</code></pre>
+        
+        <p>Paste this configuration (replace <code>jobs.yourdomain.com</code> with your domain):</p>
+        
+        <pre><code>server {
+    listen 80;
+    server_name jobs.yourdomain.com;
+
+    location / {
+        proxy_pass http://localhost:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+        proxy_read_timeout 90s;
+    }
+}</code></pre>
+        
+        <p>Enable the site and test:</p>
+        
+        <pre><code>sudo ln -s /etc/nginx/sites-available/jobtracker /etc/nginx/sites-enabled/
+sudo nginx -t           # Test config
+sudo systemctl reload nginx</code></pre>
+        
+        <p>At this point, you can test that the app is working over HTTP at <code>http://jobs.yourdomain.com</code>.</p>
+        
+        <hr>
+        
+        <h2>Step 10 — Set Up HTTPS with Let's Encrypt</h2>
+        
+        <pre><code>sudo apt install -y certbot python3-certbot-nginx
+
+# Obtain SSL certificate (automatically configures Nginx)
+sudo certbot --nginx -d jobs.yourdomain.com
+
+# Verify auto-renewal works
+sudo certbot renew --dry-run</code></pre>
+        
+        <p>Certbot automatically modifies your Nginx config to handle HTTPS and sets up a cron/timer for auto-renewal.</p>
+        
+        <hr>
+        
+        <h2>Step 11 — Verify Everything Works</h2>
+        
+        <ol>
+            <li>Visit <strong>https://jobs.yourdomain.com</strong> in your browser</li>
+            <li>Log in with the default admin credentials from your <code>.env</code> file</li>
+            <li>Test adding a customer and a job</li>
+            <li>Check PM2 logs for any errors: <code>pm2 logs jobtracker</code></li>
+        </ol>
+        
+        <hr>
+        
+        <h2>🔄 Updating the App (Future)</h2>
+        
+        <p>Whenever you push changes to GitHub:</p>
+        
+        <pre><code>cd ~/customer-job-app
+git pull origin main
+npm install          # Install any new dependencies
+npm run build        # Rebuild
+pm2 restart jobtracker  # Restart with new code</code></pre>
+        
+        <hr>
+        
+        <h2>🔒 Security Checklist</h2>
+        
+        <ul>
+            <li>✅ Firewall (UFW) enabled — only ports 22, 80, 443 open</li>
+            <li>✅ Strong database password set</li>
+            <li>✅ JWT secret is a random 64+ byte hex string</li>
+            <li>✅ Admin password changed from default</li>
+            <li>✅ HTTPS enabled with Let's Encrypt</li>
+            <li>✅ Non-root user running the app</li>
+            <li>☐ (Optional) Set up fail2ban for SSH brute-force protection:
+                <pre><code>sudo apt install -y fail2ban
+sudo systemctl enable fail2ban</code></pre>
+            </li>
+            <li>☐ (Optional) Set up automated database backups:
+                <pre><code># Add to crontab (crontab -e):
+# 0 2 * * * pg_dump -U jobtracker jobtracker_db > /home/deploy/backups/jobtracker_$(date +\%Y\%m\%d).sql</code></pre>
+            </li>
+        </ul>
+        
+        <hr>
+        
+        <h2>📁 File Structure on Server</h2>
+        
+        <pre><code>/home/deploy/
+└── customer-job-app/
+    ├── .env                  ← Your secrets (never commit this!)
+    ├── .next/                ← Built production output
+    ├── node_modules/
+    ├── src/
+    ├── package.json
+    └── ...</code></pre>
+        
+        <hr>
+        
+        <h2>Troubleshooting</h2>
+        
+        <table>
+            <thead>
+                <tr>
+                    <th>Problem</th>
+                    <th>Fix</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>App won't start</td>
+                    <td>Check <code>pm2 logs jobtracker</code> for errors</td>
+                </tr>
+                <tr>
+                    <td>Database connection error</td>
+                    <td>Verify <code>DATABASE_URL</code> in <code>.env</code> matches your PostgreSQL credentials</td>
+                </tr>
+                <tr>
+                    <td>502 Bad Gateway</td>
+                    <td>Ensure PM2 is running (<code>pm2 status</code>) and Nginx proxy is pointing to port 3000</td>
+                </tr>
+                <tr>
+                    <td>Domain not resolving</td>
+                    <td>Check DNS A record points to your server's public IP</td>
+                </tr>
+                <tr>
+                    <td>SSL certificate error</td>
+                    <td>Run <code>sudo certbot renew --force-renewal</code></td>
+                </tr>
+                <tr>
+                    <td>Permission denied on clone</td>
+                    <td>Use HTTPS URL or set up SSH keys for GitHub</td>
+                </tr>
+                <tr>
+                    <td>Drizzle migration fails</td>
+                    <td>Ensure the PostgreSQL user has GRANT ALL on the database and schema</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>

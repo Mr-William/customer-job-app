@@ -1,32 +1,40 @@
-import { eq } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/node-postgres";
+import { drizzle, NodePgDatabase } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import { hashPassword } from "@/lib/auth";
 import { users } from "@/db/schema";
+import { eq } from "drizzle-orm";
 
-const databaseUrl = process.env.DATABASE_URL;
-
-if (!databaseUrl) {
-  throw new Error("DATABASE_URL is required");
-}
+// ─── Lazy database initialization ────────────────────────────────────────────
+// The connection is only created when a query actually runs, NOT at import time.
+// This prevents build-time failures when DATABASE_URL isn't available.
 
 const globalForDb = globalThis as typeof globalThis & {
-  __arenaNextJsPostgresqlPool?: Pool;
+  __drizzleDb?: NodePgDatabase;
 };
 
-export const pool =
-  globalForDb.__arenaNextJsPostgresqlPool ??
-  new Pool({
-    connectionString: databaseUrl,
-  });
-
-if (process.env.NODE_ENV !== "production") {
-  globalForDb.__arenaNextJsPostgresqlPool = pool;
+function getDb(): NodePgDatabase {
+  if (!globalForDb.__drizzleDb) {
+    const databaseUrl = process.env.DATABASE_URL;
+    if (!databaseUrl) {
+      throw new Error("DATABASE_URL is required. Set it in your .env file.");
+    }
+    const pool = new Pool({ connectionString: databaseUrl });
+    globalForDb.__drizzleDb = drizzle(pool);
+  }
+  return globalForDb.__drizzleDb;
 }
 
-export const db = drizzle(pool);
+// Proxy so that `db.select()...` works without an explicit getDb() call
+export const db: NodePgDatabase = new Proxy({} as NodePgDatabase, {
+  get(_, prop) {
+    return (getDb() as any)[prop];
+  },
+});
 
-async function ensureDefaultAdmin() {
+// ─── Default admin bootstrap ─────────────────────────────────────────────────
+// Exported for instrumentation.ts — runs at server startup only (not during build)
+
+export async function ensureDefaultAdmin() {
   const email = process.env.DEFAULT_ADMIN_EMAIL?.trim().toLowerCase();
   const password = process.env.DEFAULT_ADMIN_PASSWORD;
 
@@ -35,7 +43,7 @@ async function ensureDefaultAdmin() {
   }
 
   try {
-    const [existingAdmin] = await db
+    const [existingAdmin] = await getDb()
       .select({ id: users.id, email: users.email, role: users.role })
       .from(users)
       .where(eq(users.role, "admin"))
@@ -43,7 +51,7 @@ async function ensureDefaultAdmin() {
 
     if (existingAdmin) {
       if (existingAdmin.email === email) {
-        await db
+        await getDb()
           .update(users)
           .set({
             firstName: process.env.DEFAULT_ADMIN_FIRST_NAME?.trim() || "Admin",
@@ -58,7 +66,7 @@ async function ensureDefaultAdmin() {
       return;
     }
 
-    const [existingUser] = await db
+    const [existingUser] = await getDb()
       .select({ id: users.id })
       .from(users)
       .where(eq(users.email, email))
@@ -67,7 +75,7 @@ async function ensureDefaultAdmin() {
     const passwordHash = await hashPassword(password);
 
     if (existingUser) {
-      await db
+      await getDb()
         .update(users)
         .set({
           role: "admin",
@@ -79,7 +87,7 @@ async function ensureDefaultAdmin() {
       return;
     }
 
-    await db.insert(users).values({
+    await getDb().insert(users).values({
       firstName: process.env.DEFAULT_ADMIN_FIRST_NAME?.trim() || "Admin",
       lastName: process.env.DEFAULT_ADMIN_LAST_NAME?.trim() || "User",
       email,
@@ -92,5 +100,3 @@ async function ensureDefaultAdmin() {
     console.error("Failed to create default admin account:", error);
   }
 }
-
-void ensureDefaultAdmin();
