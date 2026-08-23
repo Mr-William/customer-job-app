@@ -106,10 +106,7 @@ export default function DashboardLayout({
       {/* Nav links */}
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
         {[...navItems, ...(user?.role === "admin" ? adminNavItems : [])].map((item) => {
-          const isActive =
-            item.href === "/dashboard"
-              ? pathname === "/dashboard"
-              : pathname.startsWith(item.href);
+        const isActive = pathname === item.href;
           return (
             <Link
               key={item.href}
