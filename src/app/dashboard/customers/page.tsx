@@ -90,6 +90,34 @@ export default function CustomersPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
   const [showImport, setShowImport] = useState(false);
 
+  // Sort state
+  const [sortField, setSortField] = useState<"default" | "name" | "lastJob">("default");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+
+  function handleSort(field: "default" | "name" | "lastJob") {
+    if (sortField === field) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortField(field);
+      setSortDir(field === "lastJob" ? "desc" : "asc");
+    }
+  }
+
+  function getLastJobDate(customer: Customer): number {
+    if (customer.jobs.length === 0) return 0;
+    return Math.max(...customer.jobs.map((j) => new Date(j.createdAt).getTime()));
+  }
+
+  const sortedCustomers = [...customers].sort((a, b) => {
+    let cmp = 0;
+    if (sortField === "name") {
+      cmp = getDisplayName(a).localeCompare(getDisplayName(b));
+    } else if (sortField === "lastJob") {
+      cmp = getLastJobDate(a) - getLastJobDate(b);
+    }
+    return sortDir === "asc" ? cmp : -cmp;
+  });
+
   // Edit customer form state
   const [editName, setEditName] = useState("");
   const [editFirstName, setEditFirstName] = useState("");
