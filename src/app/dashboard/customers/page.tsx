@@ -257,7 +257,7 @@ export default function CustomersPage() {
         </div>
       ) : (
         <div className="space-y-4">
-          {customers.map((customer) => (
+          {sortedCustomers.map((customer) => (
             <div key={customer.id} className="dr-card fade-in">
               {/* Customer Header */}
               <div className="flex items-start justify-between gap-4 flex-wrap">
