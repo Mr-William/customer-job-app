@@ -46,6 +46,40 @@ function BillingBadge({ job }: { job: Job }) {
   return <span className="badge-danger">⚠ No Bill</span>;
 }
 
+function SortBtn({
+  field,
+  label,
+  current,
+  dir,
+  onClick,
+}: {
+  field: "default" | "name" | "lastJob";
+  label: string;
+  current: string;
+  dir: string;
+  onClick: (field: "default" | "name" | "lastJob") => void;
+}) {
+  const active = current === field;
+  return (
+    <button
+      onClick={() => onClick(field)}
+      style={{
+        background: active ? "rgba(249,115,22,0.15)" : "transparent",
+        border: `1px solid ${active ? "rgba(249,115,22,0.4)" : "var(--border-color)"}`,
+        borderRadius: "4px",
+        padding: "4px 10px",
+        cursor: "pointer",
+        color: active ? "var(--accent-orange)" : "var(--text-secondary)",
+        fontWeight: active ? 600 : 400,
+        fontSize: "12px",
+        transition: "all 0.15s",
+      }}
+    >
+      {label} {active ? (dir === "asc" ? "↑" : "↓") : ""}
+    </button>
+  );
+}
+
 export default function CustomersPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
