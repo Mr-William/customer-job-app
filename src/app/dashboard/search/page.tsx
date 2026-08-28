@@ -24,7 +24,7 @@ interface Customer {
   name: string | null;
   firstName: string | null;
   lastName: string | null;
-  phone: string;
+  phone: string | null;
   email: string | null;
   jobAddress: string;
   createdAt: string;
@@ -99,7 +99,7 @@ export default function SearchPage() {
   const sorted = [...results].sort((a, b) => {
     let cmp = 0;
     if (sortField === "name") cmp = getDisplayName(a).localeCompare(getDisplayName(b));
-    else if (sortField === "phone") cmp = a.phone.localeCompare(b.phone);
+    else if (sortField === "phone") cmp = (a.phone || "").localeCompare(b.phone || "");
     else if (sortField === "jobs") cmp = a.jobs.length - b.jobs.length;
     else if (sortField === "date") cmp = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
     return sortDir === "asc" ? cmp : -cmp;
@@ -130,9 +130,9 @@ export default function SearchPage() {
       name: c.name || "",
       firstName: c.firstName || "",
       lastName: c.lastName || "",
-      phone: c.phone,
+      phone: c.phone || "",
       email: c.email || "",
-      jobAddress: c.jobAddress,
+      jobAddress: c.jobAddress || "",
     });
   }
 
@@ -314,8 +314,8 @@ export default function SearchPage() {
                             <BillPill bill={getBillStatus(customer.jobs)} />
                           </div>
                           <div className="text-sm space-y-1" style={{ color: "var(--text-secondary)" }}>
-                            <div>📞 {customer.phone}{customer.email && <span className="ml-4">✉️ {customer.email}</span>}</div>
-                            <div>📍 {customer.jobAddress}</div>
+                            <div>📞 {customer.phone || <span style={{ color: "var(--text-muted)" }}>No phone</span>}{customer.email && <span className="ml-4">✉️ {customer.email}</span>}</div>
+                            <div>📍 {customer.jobAddress || <span style={{ color: "var(--text-muted)" }}>No address</span>}</div>
                           </div>
                         </div>
                         <div className="flex gap-2 flex-wrap">

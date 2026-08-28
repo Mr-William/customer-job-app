@@ -31,6 +31,27 @@ function normalize(str: string): string {
   return str.toLowerCase().replace(/\s+/g, " ").trim();
 }
 
+// Phone numbers are compared on digits only, so "(555) 123-4567" and
+// "555-123-4567" are treated as the same number.
+function normalizePhone(str: string): string {
+  return (str || "").replace(/\D/g, "");
+}
+
+// A customer is considered a duplicate only when the name AND address AND
+// phone all match. Two records sharing a name are distinct if either their
+// address or their phone differs.
+function identityKey(
+  name: string,
+  jobAddress: string,
+  phone: string
+): string {
+  return [
+    normalize(name),
+    normalize(jobAddress),
+    normalizePhone(phone),
+  ].join("|");
+}
+
 export async function POST(req: NextRequest) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -45,14 +66,18 @@ export async function POST(req: NextRequest) {
 
     // Load existing customers from DB for duplicate checking
     const existingCustomers = await db.select().from(customers);
-    const existingNames = new Set(
+    const existingKeys = new Set(
       existingCustomers
-        .map((c) => normalize(c.name || `${c.firstName || ""} ${c.lastName || ""}`.trim()))
+        .map((c) => {
+          const cName = c.name || `${c.firstName || ""} ${c.lastName || ""}`.trim();
+          if (!cName) return "";
+          return identityKey(cName, c.jobAddress || "", c.phone || "");
+        })
         .filter(Boolean)
     );
 
-    // Track names inserted during this import to catch duplicates within the file itself
-    const importedNames = new Set<string>();
+    // Track records inserted during this import to catch duplicates within the file itself
+    const importedKeys = new Set<string>();
 
     const inserted: number[] = [];
     const skipped: { row: number; reason: string }[] = [];
@@ -66,10 +91,10 @@ export async function POST(req: NextRequest) {
       const phone = pick(row, "phone", "phone number", "phonenumber", "phone_number", "mobile", "cell", "telephone");
       const email = pick(row, "email", "email address", "emailaddress", "email_address");
 
-      // Check required fields
+      // Name is the only required field — phone and address are optional so
+      // that partial records still import.
       const missing: string[] = [];
       if (!name) missing.push("Name");
-      if (!jobAddress) missing.push("Address");
 
       if (missing.length > 0) {
         skipped.push({
@@ -79,12 +104,13 @@ export async function POST(req: NextRequest) {
         continue;
       }
 
-      // Check for duplicates — against DB and within this import batch
-      const normalizedName = normalize(name);
-      if (existingNames.has(normalizedName) || importedNames.has(normalizedName)) {
+      // Check for duplicates — against DB and within this import batch.
+      // Only an exact match on name + address + phone counts as a duplicate.
+      const key = identityKey(name, jobAddress, phone);
+      if (existingKeys.has(key) || importedKeys.has(key)) {
         duplicates.push({
           row: i + 2,
-          reason: `Duplicate customer: "${name}" already exists`,
+          reason: `Duplicate customer: "${name}" with the same address and phone already exists`,
         });
         continue;
       }
@@ -97,12 +123,13 @@ export async function POST(req: NextRequest) {
           lastName: null,
           phone: phone || null,
           email: email || null,
-          jobAddress,
+          // jobAddress is NOT NULL in the schema; store "" when absent
+          jobAddress: jobAddress || "",
         })
         .returning();
 
       inserted.push(customer.id);
-      importedNames.add(normalizedName);
+      importedKeys.add(key);
     }
 
     return NextResponse.json({

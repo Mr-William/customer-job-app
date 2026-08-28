@@ -106,10 +106,7 @@ export default function DashboardLayout({
       {/* Nav links */}
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
         {[...navItems, ...(user?.role === "admin" ? adminNavItems : [])].map((item) => {
-          const isActive =
-            item.href === "/dashboard"
-              ? pathname === "/dashboard"
-              : pathname.startsWith(item.href);
+        const isActive = pathname === item.href;
           return (
             <Link
               key={item.href}
@@ -163,19 +160,17 @@ export default function DashboardLayout({
     >
       {/* ── Desktop sidebar (always visible, never overlaps) ── */}
       <aside
+        className="hidden md:flex flex-col"
         style={{
           width: "240px",
           minWidth: "240px",
           background: "var(--bg-secondary)",
           borderRight: "1px solid var(--border-color)",
-          display: "flex",
-          flexDirection: "column",
           height: "100vh",
           position: "sticky",
           top: 0,
           overflowY: "auto",
         }}
-        className="hidden md:flex"
       >
         <SidebarContent />
       </aside>
@@ -198,7 +193,7 @@ export default function DashboardLayout({
 
         {/* Slide-in drawer */}
         <aside
-          className="md:hidden"
+          className="md:hidden flex flex-col"
           style={{
             position: "fixed",
             top: 0,
@@ -207,8 +202,6 @@ export default function DashboardLayout({
             width: "240px",
             background: "var(--bg-secondary)",
             borderRight: "1px solid var(--border-color)",
-            display: "flex",
-            flexDirection: "column",
             zIndex: 50,
             transform: mobileOpen ? "translateX(0)" : "translateX(-100%)",
             transition: "transform 0.25s ease",

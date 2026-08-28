@@ -25,7 +25,7 @@ interface Customer {
   name: string | null;
   firstName: string | null;
   lastName: string | null;
-  phone: string;
+  phone: string | null;
   email: string | null;
   jobAddress: string;
   createdAt: string;
@@ -46,6 +46,40 @@ function BillingBadge({ job }: { job: Job }) {
   return <span className="badge-danger">⚠ No Bill</span>;
 }
 
+function SortBtn({
+  field,
+  label,
+  current,
+  dir,
+  onClick,
+}: {
+  field: "default" | "name" | "lastJob";
+  label: string;
+  current: string;
+  dir: string;
+  onClick: (field: "default" | "name" | "lastJob") => void;
+}) {
+  const active = current === field;
+  return (
+    <button
+      onClick={() => onClick(field)}
+      style={{
+        background: active ? "rgba(249,115,22,0.15)" : "transparent",
+        border: `1px solid ${active ? "rgba(249,115,22,0.4)" : "var(--border-color)"}`,
+        borderRadius: "4px",
+        padding: "4px 10px",
+        cursor: "pointer",
+        color: active ? "var(--accent-orange)" : "var(--text-secondary)",
+        fontWeight: active ? 600 : 400,
+        fontSize: "12px",
+        transition: "all 0.15s",
+      }}
+    >
+      {label} {active ? (dir === "asc" ? "↑" : "↓") : ""}
+    </button>
+  );
+}
+
 export default function CustomersPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -55,6 +89,34 @@ export default function CustomersPage() {
   const [editCustomer, setEditCustomer] = useState<Customer | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
   const [showImport, setShowImport] = useState(false);
+
+  // Sort state
+  const [sortField, setSortField] = useState<"default" | "name" | "lastJob">("default");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+
+  function handleSort(field: "default" | "name" | "lastJob") {
+    if (sortField === field) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortField(field);
+      setSortDir(field === "lastJob" ? "desc" : "asc");
+    }
+  }
+
+  function getLastJobDate(customer: Customer): number {
+    if (customer.jobs.length === 0) return 0;
+    return Math.max(...customer.jobs.map((j) => new Date(j.createdAt).getTime()));
+  }
+
+  const sortedCustomers = [...customers].sort((a, b) => {
+    let cmp = 0;
+    if (sortField === "name") {
+      cmp = getDisplayName(a).localeCompare(getDisplayName(b));
+    } else if (sortField === "lastJob") {
+      cmp = getLastJobDate(a) - getLastJobDate(b);
+    }
+    return sortDir === "asc" ? cmp : -cmp;
+  });
 
   // Edit customer form state
   const [editName, setEditName] = useState("");
@@ -88,9 +150,9 @@ export default function CustomersPage() {
     setEditName(c.name || "");
     setEditFirstName(c.firstName || "");
     setEditLastName(c.lastName || "");
-    setEditPhone(c.phone);
+    setEditPhone(c.phone || "");
     setEditEmail(c.email || "");
-    setEditAddress(c.jobAddress);
+    setEditAddress(c.jobAddress || "");
     setEditError("");
   }
 
@@ -159,7 +221,13 @@ export default function CustomersPage() {
             {customers.length} customer{customers.length !== 1 ? "s" : ""} total
           </p>
         </div>
-        <div className="flex gap-3 flex-wrap">
+         <div className="flex gap-3 flex-wrap items-center">
+          <div className="flex items-center gap-2 text-xs" style={{ color: "var(--text-muted)" }}>
+            <span>Sort:</span>
+            <SortBtn field="default" label="Default" current={sortField} dir={sortDir} onClick={handleSort} />
+            <SortBtn field="name" label="Name" current={sortField} dir={sortDir} onClick={handleSort} />
+            <SortBtn field="lastJob" label="Last Job" current={sortField} dir={sortDir} onClick={handleSort} />
+          </div>
           <button className="dr-btn-secondary" onClick={() => setShowImport(true)}>
             📂 Import Customers
           </button>
@@ -189,7 +257,7 @@ export default function CustomersPage() {
         </div>
       ) : (
         <div className="space-y-4">
-          {customers.map((customer) => (
+          {sortedCustomers.map((customer) => (
             <div key={customer.id} className="dr-card fade-in">
               {/* Customer Header */}
               <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -211,11 +279,11 @@ export default function CustomersPage() {
                   </div>
                   <div className="mt-2 space-y-1">
                     <div className="text-sm" style={{ color: "var(--text-secondary)" }}>
-                      📞 {customer.phone}
+                      📞 {customer.phone || <span style={{ color: "var(--text-muted)" }}>No phone</span>}
                       {customer.email && <span className="ml-4">✉️ {customer.email}</span>}
                     </div>
                     <div className="text-sm" style={{ color: "var(--text-secondary)" }}>
-                      📍 {customer.jobAddress}
+                      📍 {customer.jobAddress || <span style={{ color: "var(--text-muted)" }}>No address</span>}
                     </div>
                   </div>
                 </div>
