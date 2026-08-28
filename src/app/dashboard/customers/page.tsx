@@ -221,7 +221,13 @@ export default function CustomersPage() {
             {customers.length} customer{customers.length !== 1 ? "s" : ""} total
           </p>
         </div>
-        <div className="flex gap-3 flex-wrap">
+         <div className="flex gap-3 flex-wrap items-center">
+          <div className="flex items-center gap-2 text-xs" style={{ color: "var(--text-muted)" }}>
+            <span>Sort:</span>
+            <SortBtn field="default" label="Default" current={sortField} dir={sortDir} onClick={handleSort} />
+            <SortBtn field="name" label="Name" current={sortField} dir={sortDir} onClick={handleSort} />
+            <SortBtn field="lastJob" label="Last Job" current={sortField} dir={sortDir} onClick={handleSort} />
+          </div>
           <button className="dr-btn-secondary" onClick={() => setShowImport(true)}>
             📂 Import Customers
           </button>
