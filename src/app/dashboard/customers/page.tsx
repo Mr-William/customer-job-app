@@ -46,6 +46,8 @@ function BillingBadge({ job }: { job: Job }) {
   return <span className="badge-danger">⚠ No Bill</span>;
 }
 
+type SortField = "name" | "lastJob";
+
 function SortBtn({
   field,
   label,
@@ -53,11 +55,11 @@ function SortBtn({
   dir,
   onClick,
 }: {
-  field: "default" | "name" | "lastJob";
+  field: SortField;
   label: string;
-  current: string;
+  current: SortField;
   dir: string;
-  onClick: (field: "default" | "name" | "lastJob") => void;
+  onClick: (field: SortField) => void;
 }) {
   const active = current === field;
   return (
@@ -90,11 +92,11 @@ export default function CustomersPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
   const [showImport, setShowImport] = useState(false);
 
-  // Sort state
-  const [sortField, setSortField] = useState<"default" | "name" | "lastJob">("default");
+  // Sort state — the list always has an active sort, defaulting to name A→Z
+  const [sortField, setSortField] = useState<SortField>("name");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
-  function handleSort(field: "default" | "name" | "lastJob") {
+  function handleSort(field: SortField) {
     if (sortField === field) {
       setSortDir((d) => (d === "asc" ? "desc" : "asc"));
     } else {
@@ -224,7 +226,6 @@ export default function CustomersPage() {
          <div className="flex gap-3 flex-wrap items-center">
           <div className="flex items-center gap-2 text-xs" style={{ color: "var(--text-muted)" }}>
             <span>Sort:</span>
-            <SortBtn field="default" label="Default" current={sortField} dir={sortDir} onClick={handleSort} />
             <SortBtn field="name" label="Name" current={sortField} dir={sortDir} onClick={handleSort} />
             <SortBtn field="lastJob" label="Last Job" current={sortField} dir={sortDir} onClick={handleSort} />
           </div>
