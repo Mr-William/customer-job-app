@@ -237,6 +237,8 @@ pm2 startup
 # ^ Copy and run the command it outputs
 ```
 
+> ⚠️ **Always manage PM2 as the `deploy` user — never `sudo pm2`.** PM2 keeps a separate process table per user: an app started under root is invisible to `deploy` (`pm2 delete` says "not found"), and `pm2 startup` registers the boot service under whichever user ran it. If you ever see "Process or Namespace not found", check `sudo pm2 list` — the process is probably under the other user. Fix: delete it from that user's PM2, then start it, `pm2 save`, and `pm2 startup` as `deploy`.
+
 ### Useful PM2 commands
 
 ```bash
@@ -322,6 +324,279 @@ Certbot automatically modifies your Nginx config to handle HTTPS and sets up a c
 
 ---
 
+## 🛡️ Security Hardening (Recommended)
+
+Your server's public IP is scanned continuously (observed in access logs: `.git`/`cgi-bin`/solr/onvif probes, PHP RCE attempts, mining-pool protocol probes, SSH banner grabs). Most of it is automated noise, but close the common gaps below.
+
+### 1. Verify nothing got in (do this first, ~5 min)
+
+```bash
+# Were any suspicious requests actually SERVED (200/201/3xx)?
+grep -E '" (200|201|30[12]) ' /var/log/nginx/access.log \
+  | grep -Ei '\.git|\.env|cgi-bin|onvif|solr|allow_url_include|auto_prepend|mining\.subscribe'
+
+# Anyone successfully SSH in who isn't you?
+sudo last -a | head -20
+sudo lastb | head -20                      # failed login attempts
+sudo tail -100 /var/log/auth.log
+
+# Are secrets reachable from the web? (both must return 404)
+curl -sI https://jobs.yourdomain.com/.env | head -1
+curl -sI https://jobs.yourdomain.com/.git/config | head -1
+```
+
+### 2. SSH hardening + fail2ban
+
+```bash
+# From your local machine first, so you don't lock yourself out:
+ssh-copy-id deploy@SERVER_IP
+```
+
+Edit `/etc/ssh/sshd_config` (leave a second terminal open while testing):
+
+```
+PasswordAuthentication no
+PermitRootLogin prohibit-password
+```
+
+```bash
+sudo systemctl reload sshd && ssh deploy@SERVER_IP   # confirm login still works
+```
+
+Install fail2ban with jails that match the scanner behavior in your logs:
+
+```bash
+sudo apt install -y fail2ban
+sudo tee /etc/fail2ban/jail.local >/dev/null <<'EOF'
+[sshd]
+enabled  = true
+maxretry = 5
+bantime  = 1h
+findtime = 10m
+
+[nginx-botsearch]
+enabled  = true
+filter   = nginx-botsearch
+maxretry = 10
+bantime  = 1d
+findtime = 1h
+
+[nginx-bad-request]
+enabled  = true
+filter   = nginx-bad-request
+maxretry = 5
+bantime  = 1d
+findtime = 1h
+
+[nginx-404]
+enabled  = true
+filter   = nginx-404
+logpath  = /var/log/nginx/access.log
+maxretry = 10
+findtime = 1h
+bantime  = 1d
+EOF
+```
+
+The stock nginx filters read `error.log`, but with a full-proxy setup 404s never reach it (the app returns them, nginx passes them through) — so the `nginx-404` jail needs a custom filter that counts 404s in the **access log**:
+
+```bash
+sudo tee /etc/fail2ban/filter.d/nginx-404.conf >/dev/null <<'EOF'
+[Definition]
+
+failregex = ^<HOST> .*"[A-Z]+ \S+ HTTP/[0-9.]+" 404 \d+
+
+ignoreregex = ^<HOST> .*"(GET|HEAD) /favicon\.ico[^"]*" 404 \d+
+EOF
+# Verify no tabs/stray characters sneaked in (a corrupted file silently matches 0):
+cat -A /etc/fail2ban/filter.d/nginx-404.conf
+```
+
+> ⚠️ **The `.*` between `<HOST>` and the request is deliberate, not laziness.** fail2ban ≥ 1.0's date-template handling breaks patterns that try to match *through* the bracketed timestamp (`\[[^\]]+\]` versions match 0 lines on some builds) — skipping the timestamp with `.*` works on every version. Don't "fix" it back.
+>
+> ⚠️ If your paste corrupts multi-line blocks (tabs/`^I` or stray `$` show in `cat -A`), rewrite the file with this paste-proof one-liner instead:
+>
+> ```bash
+> echo 'W0RlZmluaXRpb25dCgpmYWlscmVnZXggPSBePEhPU1Q+IC4qIltBLVpdKyBcUysgSFRUUC9bMC05Ll0rIiA0MDQgXGQrCgppZ25vcmVyZWdleCA9IF48SE9TVD4gLioiKEdFVHxIRUFEKSAvZmF2aWNvblwuaWNvW14iXSoiIDQwNCBcZCsK' | base64 -d | sudo tee /etc/fail2ban/filter.d/nginx-404.conf > /dev/null
+> ```
+>
+> Always verify a custom filter works before relying on it: `sudo fail2ban-regex /var/log/nginx/access.log /etc/fail2ban/filter.d/nginx-404.conf` — the final `matched:` count must be > 0.
+
+```bash
+sudo systemctl enable --now fail2ban
+sudo fail2ban-client status    # expect 4 jails: sshd, nginx-botsearch, nginx-bad-request, nginx-404
+```
+
+`nginx-botsearch`/`nginx-bad-request` ban exploit strings and malformed requests; **`nginx-404` is the workhorse** — it's the jail that catches the repeated-404 scanner noise. Check its catches anytime: `sudo fail2ban-client get nginx-404 banned`
+
+### 3. Harden Nginx
+
+Replace `/etc/nginx/sites-available/jobtracker` with this (adjust domain; certbot cert paths assume the domain is `jobs.yourdomain.com`):
+
+```nginx
+# Rate-limit zones (http context — fine in this included file)
+limit_req_zone $binary_remote_addr zone=api:10m rate=10r/s;
+limit_req_zone $binary_remote_addr zone=auth:10m rate=5r/m;
+
+server {
+    listen 80;
+    server_name jobs.yourdomain.com;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    server_name jobs.yourdomain.com;
+
+    ssl_certificate     /etc/letsencrypt/live/jobs.yourdomain.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/jobs.yourdomain.com/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+
+    server_tokens off;
+    client_max_body_size 10m;
+
+    # Security headers
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    add_header X-Content-Type-Options nosniff always;
+    add_header X-Frame-Options DENY always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+
+    # Secrets & app internals: answer 404 without ever touching the app
+    location ~* /\.(git|env|next|npmrc|dockerignore|dockerfile) {
+        return 404;
+    }
+    # Known scanner targets: stop them at the proxy
+    location ~* ^/(cgi-bin|solr|onvif|webui|HNAP11|odinsvr|evox) {
+        return 404;
+    }
+
+    # Login/register: strict limit to blunt credential brute-force
+    location ~* ^/api/auth/(login|register) {
+        limit_req zone=auth burst=5 nodelay;
+        proxy_pass http://localhost:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+        proxy_read_timeout 90s;
+    }
+
+    location / {
+        limit_req zone=api burst=20 nodelay;
+        proxy_pass http://localhost:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+        proxy_read_timeout 90s;
+    }
+}
+```
+
+```bash
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+### 4. Automatic updates — and rebooting only when needed
+
+**Option A (recommended): `unattended-upgrades`.** Security updates install themselves every day, and the server reboots **only when an update requires it** (kernel, etc.) — not every night:
+
+```bash
+sudo apt install -y unattended-upgrades needrestart
+sudo dpkg-reconfigure -plow unattended-upgrades   # accept defaults
+
+# Auto-reboot at 03:00, but ONLY if an installed update set /var/run/reboot-required
+sudo tee /etc/apt/apt.conf.d/99auto-reboot >/dev/null <<'EOF'
+Unattended-Upgrade::Automatic-Reboot "true";
+Unattended-Upgrade::Automatic-Reboot-Time "03:00";
+EOF
+```
+
+Check what it's doing anytime: `less /var/log/unattended-upgrades/unattended-upgrades.log`
+
+**Option B (optional, on top of A): nightly full upgrade + conditional reboot.** If you want *all* updates (not just security) applied on a schedule:
+
+Create `/home/deploy/scripts/nightly-upgrade.sh`:
+
+```bash
+#!/bin/bash
+# Nightly: upgrade everything, prune old journal logs, reboot ONLY if required.
+set -uo pipefail
+exec >> /var/log/nightly-upgrade.log 2>&1
+echo "=== $(date) ==="
+export DEBIAN_FRONTEND=noninteractive
+apt-get update
+apt-get -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" upgrade
+apt-get -y autoremove --purge
+journalctl --vacuum-time=7d
+if [ -f /var/run/reboot-required ]; then
+  echo "Reboot required — rebooting. (nginx, postgres, fail2ban, and the PM2 app all auto-restore)"
+  systemctl reboot
+else
+  echo "No reboot needed."
+fi
+```
+
+```bash
+sudo chmod +x /home/deploy/scripts/nightly-upgrade.sh
+# Run it ONCE manually first and watch it — don't schedule something untested
+sudo /home/deploy/scripts/nightly-upgrade.sh
+# Then schedule as root: sudo crontab -e
+# 0 2 * * * /home/deploy/scripts/nightly-upgrade.sh
+```
+
+Notes for either option:
+
+- During any reboot the site is down ~1–2 minutes (PM2/nginx/Postgres/fail2ban all come back on their own — you've already set that up).
+- `--force-confdef/--force-confold` keeps upgrades from hanging on config-file prompts.
+- After any reboot: `pm2 list` (jobtracker online), `sudo fail2ban-client status`, and hit the site.
+- This is for the **OS**. Updating the **app** (git pull → build → `pm2 restart`) is a separate script — ask if you want one of those too.
+
+### 5. Credentials & service audit
+
+```bash
+# PostgreSQL must be localhost-only — output should be 127.0.0.1:5432, NOT 0.0.0.0:5432
+sudo ss -tlnp | grep 5432
+
+# .env must not be world-readable
+cd ~/customer-job-app && chown deploy:deploy .env && chmod 600 .env
+```
+
+Check your `.env`:
+
+- [ ] `DEFAULT_ADMIN_PASSWORD` is **not** `ChangeMe123!` (the admin is auto-created on first run — if you ever logged in with the default, change it in the dashboard)
+- [ ] `JWT_SECRET` is a long random string, not `change-this-secret`
+- [ ] DB user is `jobtracker` with a strong password, not `postgres:postgres`
+- [ ] `NEXT_PUBLIC_APP_URL` is `https://jobs.yourdomain.com`, not `http://localhost:3000`
+- [ ] SMTP uses a Gmail **app password** (2FA enabled), not your main account password
+
+### 6. Backups (daily, keep 14 days)
+
+```bash
+sudo mkdir -p /var/backups/jobtracker && sudo chown deploy /var/backups/jobtracker
+```
+
+As the `deploy` user, `crontab -e`:
+
+```
+0 2 * * * pg_dump -U jobtracker jobtracker_db | gzip > /var/backups/jobtracker/db_$(date +\%Y\%m\%d).sql.gz && find /var/backups/jobtracker -name 'db_*.sql.gz' -mtime +14 -delete
+```
+
+### 7. Optional: hide the origin IP
+
+If the IP stays under fire, put the site behind Cloudflare (free tier) and update the DNS A record to Cloudflare's. The scanners in the logs are targeting your public IP directly; a CDN absorbs that traffic.
+
+---
+
 ## 🔄 Updating the App (Future)
 
 Whenever you push changes to GitHub:
@@ -330,6 +605,7 @@ Whenever you push changes to GitHub:
 cd ~/customer-job-app
 git pull origin main
 npm install          # Install any new dependencies
+npm audit            # Check for known vulnerable packages (fix criticals before deploying)
 npm run build        # Rebuild
 pm2 restart jobtracker  # Restart with new code
 ```
@@ -344,16 +620,13 @@ pm2 restart jobtracker  # Restart with new code
 - [x] Admin password changed from default
 - [x] HTTPS enabled with Let's Encrypt
 - [x] Non-root user running the app
-- [ ] (Optional) Set up fail2ban for SSH brute-force protection:
-  ```bash
-  sudo apt install -y fail2ban
-  sudo systemctl enable fail2ban
-  ```
-- [ ] (Optional) Set up automated database backups:
-  ```bash
-  # Add to crontab (crontab -e):
-  # 0 2 * * * pg_dump -U jobtracker jobtracker_db > /home/deploy/backups/jobtracker_$(date +\%Y\%m\%d).sql
-  ```
+- [ ] (Recommended) Complete the **Security Hardening** section above (fail2ban, hardened Nginx, auto-updates, credential audit, backups):
+  - [ ] fail2ban running with `sshd` + `nginx-botsearch` jails
+  - [ ] Hardened Nginx config (rate limiting, security headers, 404s for scanner paths)
+  - [ ] `unattended-upgrades` installed
+  - [ ] `.env` audited (admin password, JWT secret, DB user, app URL) and `chmod 600`
+  - [ ] PostgreSQL confirmed bound to `127.0.0.1` only
+  - [ ] Daily `pg_dump` backup in place (14-day retention)
 
 ---
 
