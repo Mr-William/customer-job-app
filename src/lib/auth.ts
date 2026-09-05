@@ -3,7 +3,8 @@ import bcrypt from "bcryptjs";
 import { cookies } from "next/headers";
 
 const JWT_SECRET = process.env.JWT_SECRET || "fallback-secret-change-in-prod";
-const COOKIE_NAME = "dr_session";
+/** Keep in sync with src/middleware.ts */
+export const COOKIE_NAME = "dr_session";
 
 export interface JWTPayload {
   userId: number;
