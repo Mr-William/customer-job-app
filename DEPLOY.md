@@ -344,16 +344,90 @@ pm2 restart jobtracker  # Restart with new code
 - [x] Admin password changed from default
 - [x] HTTPS enabled with Let's Encrypt
 - [x] Non-root user running the app
-- [ ] (Optional) Set up fail2ban for SSH brute-force protection:
-  ```bash
-  sudo apt install -y fail2ban
-  sudo systemctl enable fail2ban
-  ```
-- [ ] (Optional) Set up automated database backups:
-  ```bash
-  # Add to crontab (crontab -e):
-  # 0 2 * * * pg_dump -U jobtracker jobtracker_db > /home/deploy/backups/jobtracker_$(date +\%Y\%m\%d).sql
-  ```
+
+---
+
+## Step 12 — Hide the app on the raw IP + ban failed logins
+
+Scanners will hit `https://YOUR.PUBLIC.IP/` even if you have a domain. These files live in `deploy/` in the repo.
+
+Run this **on the server** after `git pull` (from the app directory).
+
+### 12a — Nginx: do not serve the site on the public IP
+
+```bash
+cd ~/customer-job-app
+
+sudo cp deploy/nginx/drop-unknown.conf /etc/nginx/sites-available/drop-unknown
+sudo ln -sf /etc/nginx/sites-available/drop-unknown /etc/nginx/sites-enabled/drop-unknown
+sudo rm -f /etc/nginx/sites-enabled/default
+
+sudo cp deploy/nginx/security.conf /etc/nginx/conf.d/security.conf
+
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+If `nginx -t` complains about `ssl_reject_handshake`, edit `/etc/nginx/sites-available/drop-unknown` and use the commented snakeoil fallback in that file (`sudo apt install -y ssl-cert` first).
+
+Check:
+
+```bash
+# Domain still works
+curl -sI https://digrev.ooguy.com | head
+
+# Raw IP should NOT get the app (handshake drop or empty)
+curl -vk https://127.0.0.1/ 2>&1 | head
+```
+
+Your real site stays in `/etc/nginx/sites-available/jobtracker` (Let's Encrypt). Do not replace that file.
+
+### 12b — fail2ban: ban `POST /api/auth/login` failures
+
+5 failed logins (401 invalid password or 403 not approved) in 10 minutes → ban for 1 hour.
+
+```bash
+sudo apt install -y fail2ban
+sudo systemctl enable --now fail2ban
+
+cd ~/customer-job-app
+sudo cp deploy/fail2ban/filter.d/nginx-login.conf /etc/fail2ban/filter.d/nginx-login.conf
+sudo cp deploy/fail2ban/jail.d/nginx-login.conf /etc/fail2ban/jail.d/nginx-login.conf
+
+# Confirm the filter matches your access log format
+sudo fail2ban-regex /var/log/nginx/access.log /etc/fail2ban/filter.d/nginx-login.conf
+
+sudo fail2ban-client reload
+sudo fail2ban-client status nginx-login
+```
+
+`fail2ban-regex` may show **0 hits** until someone actually fails a login. That is OK.
+
+Useful commands:
+
+```bash
+sudo fail2ban-client status nginx-login
+sudo tail -f /var/log/fail2ban.log
+```
+
+Unban yourself if you lock out a phone on iCloud Private Relay:
+
+```bash
+sudo fail2ban-client set nginx-login unbanip 140.248.30.1
+```
+
+Also enable the stock SSH jail if it is not already on:
+
+```bash
+sudo fail2ban-client status sshd
+```
+
+### Optional — database backups
+
+```bash
+mkdir -p /home/deploy/backups
+# crontab -e  then:
+# 0 2 * * * pg_dump -U jobtracker jobtracker_db | gzip > /home/deploy/backups/jobtracker_$(date +\%Y\%m\%d).sql.gz
+```
 
 ---
 
@@ -383,3 +457,6 @@ pm2 restart jobtracker  # Restart with new code
 | SSL certificate error | Run `sudo certbot renew --force-renewal` |
 | Permission denied on clone | Use HTTPS URL or set up SSH keys for GitHub |
 | Drizzle migration fails | Ensure the PostgreSQL user has GRANT ALL on the database and schema |
+| `nginx -t` fails on `ssl_reject_handshake` | Use the snakeoil fallback in `deploy/nginx/drop-unknown.conf` |
+| Locked out after failed logins | `sudo fail2ban-client set nginx-login unbanip YOUR.IP` |
+| Domain works but HTTPS to the raw IP still shows the app | Confirm `drop-unknown` is enabled and `default` site is removed, then `sudo nginx -t && sudo systemctl reload nginx` |
