@@ -360,7 +360,7 @@ export default function SearchPage() {
                                     </div>
                                     <div className="flex gap-2">
                                       <button className="dr-btn-secondary" style={{ padding: "4px 10px", fontSize: "12px" }}
-                                        onClick={() => setEditJob({ job, customerName: `${customer.firstName} ${customer.lastName}` })}>
+                                        onClick={() => setEditJob({ job, customerName: getDisplayName(customer) })}>
                                         ✏️ Edit
                                       </button>
                                       <button className="dr-btn-danger" style={{ padding: "4px 10px", fontSize: "12px" }}
