@@ -20,6 +20,7 @@ export async function POST(req: NextRequest) {
       billSent,
       billPaid,
       additionalDetails,
+      scheduledDate,
     } = body;
 
     if (!customerId || !employeeName || totalHoursWorked === undefined || !workCompleted) {
@@ -39,6 +40,7 @@ export async function POST(req: NextRequest) {
         billSent: !!billSent,
         billPaid: !!billPaid,
         additionalDetails: additionalDetails || null,
+        scheduledDate: scheduledDate || null,
       })
       .returning();
 

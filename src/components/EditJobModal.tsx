@@ -12,6 +12,7 @@ interface Job {
   billSent: boolean;
   billPaid: boolean;
   additionalDetails: string | null;
+  scheduledDate?: string | null;
 }
 
 interface EditJobModalProps {
@@ -55,6 +56,7 @@ export default function EditJobModal({
   const [additionalDetails, setAdditionalDetails] = useState(
     job.additionalDetails || "Materials used:\n\nAdditional notes:"
   );
+  const [scheduledDate, setScheduledDate] = useState(job.scheduledDate || "");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -74,6 +76,7 @@ export default function EditJobModal({
           billSent: status === "completed" && (billStatus === "sent" || billStatus === "paid"),
           billPaid: status === "completed" && billStatus === "paid",
           additionalDetails,
+          scheduledDate: scheduledDate || null,
         }),
       });
       const data = await res.json();
@@ -177,6 +180,21 @@ export default function EditJobModal({
               </div>
             </div>
           )}
+
+          <div>
+            <label className="dr-label">
+              Scheduled Date{" "}
+              <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>
+                (optional — shows on the calendar; clear to unschedule)
+              </span>
+            </label>
+            <input
+              className="dr-input"
+              type="date"
+              value={scheduledDate}
+              onChange={(e) => setScheduledDate(e.target.value)}
+            />
+          </div>
 
           <div>
             <label className="dr-label">Additional Details</label>

@@ -25,6 +25,7 @@ export async function PUT(
     billSent,
     billPaid,
     additionalDetails,
+    scheduledDate,
   } = body;
 
   const [updated] = await db
@@ -39,6 +40,10 @@ export async function PUT(
       billSent: !!billSent,
       billPaid: !!billPaid,
       additionalDetails: additionalDetails || null,
+      // Only touch the schedule when the client sends the field (allows clearing with null/"")
+      ...(body && Object.prototype.hasOwnProperty.call(body, "scheduledDate")
+        ? { scheduledDate: scheduledDate || null }
+        : {}),
       updatedAt: new Date(),
     })
     .where(eq(jobs.id, jobId))

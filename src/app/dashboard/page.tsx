@@ -22,6 +22,13 @@ const quickActions = [
     color: "var(--accent-orange)",
   },
   {
+    href: "/dashboard/calendar",
+    icon: "📅",
+    label: "Calendar",
+    desc: "See scheduled jobs by day and plan upcoming work.",
+    color: "#22d3ee",
+  },
+  {
     href: "/dashboard/customers",
     icon: "👥",
     label: "View Customers",
