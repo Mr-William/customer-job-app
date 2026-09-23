@@ -1,12 +1,19 @@
 import { NextResponse } from "next/server";
-import { db } from "@/db";
+import { db, ensureCalendarColumns } from "@/db";
 import { customers, jobs } from "@/db/schema";
 import { getSession } from "@/lib/auth";
 import { count, eq, and } from "drizzle-orm";
 
+function todayKey(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+}
+
 export async function GET() {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  await ensureCalendarColumns();
 
   const [{ totalCustomers }] = await db
     .select({ totalCustomers: count() })
@@ -47,6 +54,12 @@ export async function GET() {
     .from(jobs)
     .where(and(eq(jobs.billSent, true), eq(jobs.billPaid, false)));
 
+  // Jobs scheduled for the current day (dashboard "Today's Jobs" card)
+  const [{ todaysJobs }] = await db
+    .select({ todaysJobs: count() })
+    .from(jobs)
+    .where(eq(jobs.scheduledDate, todayKey()));
+
   return NextResponse.json({
     totalCustomers,
     totalJobs,
@@ -56,5 +69,6 @@ export async function GET() {
     billsSent,
     billsPaid,
     outstandingBills,
+    todaysJobs,
   });
 }
