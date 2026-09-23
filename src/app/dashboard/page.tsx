@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import UpcomingStrip from "@/components/UpcomingStrip";
 
 interface Metrics {
   totalCustomers: number;
@@ -81,6 +82,9 @@ export default function DashboardHome() {
           <StatCard label="Outstanding Bills" value={metrics.outstandingBills} icon="💰" color="var(--warning)" />
         </div>
       )}
+
+      {/* Upcoming 7 days */}
+      <UpcomingStrip />
 
       {/* Quick Actions */}
       <h2 className="text-lg font-semibold mb-4" style={{ color: "var(--text-secondary)" }}>

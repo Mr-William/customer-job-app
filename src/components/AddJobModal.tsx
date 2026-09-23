@@ -26,6 +26,7 @@ export default function AddJobModal({
     "Materials used:\n\nAdditional notes:"
   );
   const [scheduledDate, setScheduledDate] = useState("");
+  const [scheduledTime, setScheduledTime] = useState("");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -48,6 +49,7 @@ export default function AddJobModal({
           billPaid: status === "completed" && billStatus === "paid",
           additionalDetails,
           scheduledDate: scheduledDate || null,
+          scheduledTime: scheduledTime || null,
         }),
       });
 
@@ -224,7 +226,7 @@ export default function AddJobModal({
             </div>
           )}
 
-          {/* Scheduled Date */}
+          {/* Scheduled Date + Time */}
           <div>
             <label className="dr-label">
               Scheduled Date{" "}
@@ -232,12 +234,21 @@ export default function AddJobModal({
                 (optional — shows on the calendar)
               </span>
             </label>
-            <input
-              className="dr-input"
-              type="date"
-              value={scheduledDate}
-              onChange={(e) => setScheduledDate(e.target.value)}
-            />
+            <div className="grid grid-cols-2 gap-4">
+              <input
+                className="dr-input"
+                type="date"
+                value={scheduledDate}
+                onChange={(e) => setScheduledDate(e.target.value)}
+              />
+              <input
+                className="dr-input"
+                type="time"
+                aria-label="Scheduled time (optional)"
+                value={scheduledTime}
+                onChange={(e) => setScheduledTime(e.target.value)}
+              />
+            </div>
           </div>
 
           {/* Additional Details */}

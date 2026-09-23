@@ -37,8 +37,12 @@ export const db: NodePgDatabase = new Proxy({} as NodePgDatabase, {
 // from the calendar API. Safe to run repeatedly.
 export async function ensureCalendarColumns() {
   try {
+    if (!process.env.DATABASE_URL) return; // dev without DB — callers handle it
     await getDb().execute(
       sql`ALTER TABLE "jobs" ADD COLUMN IF NOT EXISTS "scheduled_date" DATE`
+    );
+    await getDb().execute(
+      sql`ALTER TABLE "jobs" ADD COLUMN IF NOT EXISTS "scheduled_time" TIME`
     );
   } catch (error) {
     console.error("Failed to ensure calendar columns:", error);

@@ -26,6 +26,7 @@ export default function CalendarAddJobModal({
   const [error, setError] = useState("");
 
   const [scheduledDate, setScheduledDate] = useState(date);
+  const [scheduledTime, setScheduledTime] = useState("");
   const [customerName, setCustomerName] = useState("");
   const [phone, setPhone] = useState("");
   const [phoneTouched, setPhoneTouched] = useState(false);
@@ -60,6 +61,7 @@ export default function CalendarAddJobModal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           scheduledDate,
+          scheduledTime: scheduledTime || undefined,
           customerName: customerName.trim(),
           phone: phone.trim() || undefined,
           jobAddress: jobAddress.trim() || undefined,
@@ -119,16 +121,32 @@ export default function CalendarAddJobModal({
         {error && <div className="alert-error mb-4">{error}</div>}
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Scheduled date */}
-          <div>
-            <label className="dr-label">Scheduled Date *</label>
-            <input
-              className="dr-input"
-              type="date"
-              value={scheduledDate}
-              onChange={(e) => setScheduledDate(e.target.value)}
-              required
-            />
+          {/* Scheduled date + time */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="dr-label">Scheduled Date *</label>
+              <input
+                className="dr-input"
+                type="date"
+                value={scheduledDate}
+                onChange={(e) => setScheduledDate(e.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <label className="dr-label">
+                Time{" "}
+                <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>
+                  (optional)
+                </span>
+              </label>
+              <input
+                className="dr-input"
+                type="time"
+                value={scheduledTime}
+                onChange={(e) => setScheduledTime(e.target.value)}
+              />
+            </div>
           </div>
 
           {/* Customer name with autocomplete */}
