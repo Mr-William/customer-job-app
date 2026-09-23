@@ -1,6 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import UpcomingStrip from "@/components/UpcomingStrip";
+import { toKey } from "@/lib/calendar";
 
 interface Metrics {
   totalCustomers: number;
@@ -11,6 +13,7 @@ interface Metrics {
   billsSent: number;
   billsPaid: number;
   outstandingBills: number;
+  todaysJobs: number;
 }
 
 const quickActions = [
@@ -20,6 +23,13 @@ const quickActions = [
     label: "Add Customer",
     desc: "Create a new customer profile with contact & address details.",
     color: "var(--accent-orange)",
+  },
+  {
+    href: "/dashboard/calendar",
+    icon: "📅",
+    label: "Calendar",
+    desc: "See scheduled jobs by day and plan upcoming work.",
+    color: "#22d3ee",
   },
   {
     href: "/dashboard/customers",
@@ -67,13 +77,23 @@ export default function DashboardHome() {
 
       {/* Quick Stats */}
       {metrics && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4 mb-8">
           <StatCard label="Total Customers" value={metrics.totalCustomers} icon="👥" color="var(--accent-orange)" />
           <StatCard label="Total Jobs" value={metrics.totalJobs} icon="🔧" color="var(--accent-blue-light)" />
           <StatCard label="Completed Jobs" value={metrics.completedJobs} icon="✅" color="var(--success)" />
           <StatCard label="Outstanding Bills" value={metrics.outstandingBills} icon="💰" color="var(--warning)" />
+          <Link
+            href={`/dashboard/calendar?date=${toKey(new Date())}`}
+            style={{ textDecoration: "none" }}
+            title="Open today's schedule"
+          >
+            <StatCard label="Today's Jobs" value={metrics.todaysJobs} icon="📅" color="#22d3ee" />
+          </Link>
         </div>
       )}
+
+      {/* Upcoming 7 days */}
+      <UpcomingStrip />
 
       {/* Quick Actions */}
       <h2 className="text-lg font-semibold mb-4" style={{ color: "var(--text-secondary)" }}>

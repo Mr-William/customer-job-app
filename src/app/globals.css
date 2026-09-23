@@ -321,6 +321,17 @@ body {
   border-left: 3px solid var(--accent-orange);
 }
 
+/* Calendar day cells */
+.cal-day:hover {
+  border-color: var(--accent-orange) !important;
+  transform: translateY(-1px);
+}
+
+.cal-day:focus-visible {
+  outline: 2px solid var(--accent-orange);
+  outline-offset: 2px;
+}
+
 /* Animations */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(8px); }

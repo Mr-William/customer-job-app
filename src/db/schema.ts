@@ -7,6 +7,8 @@ import {
   timestamp,
   integer,
   real,
+  date,
+  time,
 } from "drizzle-orm/pg-core";
 
 // ─── Users ───────────────────────────────────────────────────────────────────
@@ -54,6 +56,9 @@ export const jobs = pgTable("jobs", {
   billPaid: boolean("bill_paid").notNull().default(false),
   // Additional notes
   additionalDetails: text("additional_details"),
+  // Scheduling (calendar feature). Null = unscheduled / legacy job.
+  scheduledDate: date("scheduled_date"),
+  scheduledTime: time("scheduled_time"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

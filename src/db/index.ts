@@ -2,7 +2,7 @@ import { drizzle, NodePgDatabase } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import { hashPassword } from "@/lib/auth";
 import { users } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 // ─── Lazy database initialization ────────────────────────────────────────────
 // The connection is only created when a query actually runs, NOT at import time.
@@ -30,6 +30,24 @@ export const db: NodePgDatabase = new Proxy({} as NodePgDatabase, {
     return (getDb() as any)[prop];
   },
 });
+
+// ─── Lightweight schema self-heal ─────────────────────────────────────────────
+// The project has no migrations folder (schema is synced with `drizzle-kit push`),
+// so additive column changes are applied idempotently at startup AND on-demand
+// from the calendar API. Safe to run repeatedly.
+export async function ensureCalendarColumns() {
+  try {
+    if (!process.env.DATABASE_URL) return; // dev without DB — callers handle it
+    await getDb().execute(
+      sql`ALTER TABLE "jobs" ADD COLUMN IF NOT EXISTS "scheduled_date" DATE`
+    );
+    await getDb().execute(
+      sql`ALTER TABLE "jobs" ADD COLUMN IF NOT EXISTS "scheduled_time" TIME`
+    );
+  } catch (error) {
+    console.error("Failed to ensure calendar columns:", error);
+  }
+}
 
 // ─── Default admin bootstrap ─────────────────────────────────────────────────
 // Exported for instrumentation.ts — runs at server startup only (not during build)

@@ -22,6 +22,7 @@ export async function GET(req: NextRequest) {
   const search = searchParams.get("search") || "";
   const statusFilter = searchParams.get("status") || "";
   const billFilter = searchParams.get("bill") || "";
+  const compact = searchParams.get("compact") === "1";
 
   let customerList = await db.select().from(customers).orderBy(desc(customers.createdAt));
 
@@ -31,6 +32,20 @@ export async function GET(req: NextRequest) {
     customerList = customerList.filter((c) => {
       const displayName = getDisplayName(c).toLowerCase();
       return displayName.includes(lower) || (c.phone || "").includes(lower);
+    });
+  }
+
+  // Compact mode: lightweight id/name/phone list for autocomplete (e.g. calendar form)
+  if (compact) {
+    return NextResponse.json({
+      customers: customerList.map((c) => ({
+        id: c.id,
+        name: c.name,
+        firstName: c.firstName,
+        lastName: c.lastName,
+        phone: c.phone,
+        jobAddress: c.jobAddress,
+      })),
     });
   }
 

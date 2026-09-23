@@ -13,6 +13,7 @@ interface User {
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: "📊" },
+  { href: "/dashboard/calendar", label: "Calendar", icon: "📅" },
   { href: "/dashboard/customers/add", label: "Add Customer", icon: "➕" },
   { href: "/dashboard/customers", label: "Customers", icon: "👥" },
   { href: "/dashboard/search", label: "Search", icon: "🔍" },

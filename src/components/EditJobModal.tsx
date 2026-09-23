@@ -12,6 +12,8 @@ interface Job {
   billSent: boolean;
   billPaid: boolean;
   additionalDetails: string | null;
+  scheduledDate?: string | null;
+  scheduledTime?: string | null;
 }
 
 interface EditJobModalProps {
@@ -55,6 +57,8 @@ export default function EditJobModal({
   const [additionalDetails, setAdditionalDetails] = useState(
     job.additionalDetails || "Materials used:\n\nAdditional notes:"
   );
+  const [scheduledDate, setScheduledDate] = useState(job.scheduledDate || "");
+  const [scheduledTime, setScheduledTime] = useState(job.scheduledTime || "");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -74,6 +78,8 @@ export default function EditJobModal({
           billSent: status === "completed" && (billStatus === "sent" || billStatus === "paid"),
           billPaid: status === "completed" && billStatus === "paid",
           additionalDetails,
+          scheduledDate: scheduledDate || null,
+          scheduledTime: scheduledTime || null,
         }),
       });
       const data = await res.json();
@@ -177,6 +183,30 @@ export default function EditJobModal({
               </div>
             </div>
           )}
+
+          <div>
+            <label className="dr-label">
+              Scheduled Date{" "}
+              <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>
+                (optional — shows on the calendar; clear to unschedule)
+              </span>
+            </label>
+            <div className="grid grid-cols-2 gap-4">
+              <input
+                className="dr-input"
+                type="date"
+                value={scheduledDate}
+                onChange={(e) => setScheduledDate(e.target.value)}
+              />
+              <input
+                className="dr-input"
+                type="time"
+                aria-label="Scheduled time (optional)"
+                value={scheduledTime}
+                onChange={(e) => setScheduledTime(e.target.value)}
+              />
+            </div>
+          </div>
 
           <div>
             <label className="dr-label">Additional Details</label>
