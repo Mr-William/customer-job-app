@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
     });
   }
 
-  // Compact mode: lightweight id/name/phone list for autocomplete (e.g. calendar form)
+  // Compact mode: lightweight list for autocomplete + import comparison
   if (compact) {
     return NextResponse.json({
       customers: customerList.map((c) => ({
@@ -44,6 +44,7 @@ export async function GET(req: NextRequest) {
         firstName: c.firstName,
         lastName: c.lastName,
         phone: c.phone,
+        email: c.email,
         jobAddress: c.jobAddress,
       })),
     });
