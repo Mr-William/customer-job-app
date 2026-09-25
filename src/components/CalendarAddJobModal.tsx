@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import PhoneLink from "@/components/PhoneLink";
 
 export interface CustomerOption {
   name: string;
@@ -202,6 +203,9 @@ export default function CalendarAddJobModal({
                 setPhoneTouched(true);
               }}
             />
+            {phone.trim() && (
+              <div className="text-xs mt-1"><PhoneLink phone={phone} fallback={null} label="Call number" /></div>
+            )}
           </div>
 
           {/* Job info */}

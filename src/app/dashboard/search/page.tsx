@@ -2,6 +2,7 @@
 import { useState, useCallback } from "react";
 import EditJobModal from "@/components/EditJobModal";
 import AddJobModal from "@/components/AddJobModal";
+import PhoneLink from "@/components/PhoneLink";
 import { getDisplayName } from "@/lib/customerName";
 
 interface Job {
@@ -70,11 +71,13 @@ export default function SearchPage() {
   const [editLoading, setEditLoading] = useState(false);
 
   const doSearch = useCallback(async () => {
+    const trimmedSearch = searchText.trim();
+    setSearchText(trimmedSearch);
     setLoading(true);
     setSearched(true);
     try {
       const params = new URLSearchParams();
-      if (searchText) params.set("search", searchText);
+      if (trimmedSearch) params.set("search", trimmedSearch);
       if (statusFilter) params.set("status", statusFilter);
       if (billFilter) params.set("bill", billFilter);
       const res = await fetch(`/api/customers?${params}`);
@@ -276,8 +279,11 @@ export default function SearchPage() {
                         </div>
                         <div>
                           <label className="dr-label">Phone</label>
-                          <input className="dr-input" value={editForm.phone}
+                          <input className="dr-input" type="tel" value={editForm.phone}
                             onChange={(e) => setEditForm((f) => ({ ...f, phone: e.target.value }))} />
+                          {editForm.phone.trim() && (
+                            <div className="text-xs mt-1"><PhoneLink phone={editForm.phone} fallback={null} label="Call number" /></div>
+                          )}
                         </div>
                         <div>
                           <label className="dr-label">Email</label>
@@ -314,7 +320,7 @@ export default function SearchPage() {
                             <BillPill bill={getBillStatus(customer.jobs)} />
                           </div>
                           <div className="text-sm space-y-1" style={{ color: "var(--text-secondary)" }}>
-                            <div>📞 {customer.phone || <span style={{ color: "var(--text-muted)" }}>No phone</span>}{customer.email && <span className="ml-4">✉️ {customer.email}</span>}</div>
+                            <div>📞 <PhoneLink phone={customer.phone} />{customer.email && <span className="ml-4">✉️ {customer.email}</span>}</div>
                             <div>📍 {customer.jobAddress || <span style={{ color: "var(--text-muted)" }}>No address</span>}</div>
                           </div>
                         </div>

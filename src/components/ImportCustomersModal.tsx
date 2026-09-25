@@ -1,6 +1,7 @@
 "use client";
 import { useState, useRef, useCallback, useEffect } from "react";
 import * as XLSX from "xlsx";
+import PhoneLink from "@/components/PhoneLink";
 
 interface ImportCustomersModalProps {
   onClose: () => void;
@@ -473,7 +474,7 @@ export default function ImportCustomersModal({ onClose, onSuccess }: ImportCusto
                         <tr key={r.rowNumber}>
                           <td style={{ color: "var(--text-muted)" }}>{r.rowNumber}</td>
                           <td style={{ fontWeight: 600 }}>{r.name}</td>
-                          <td>{r.phone || <span style={{ color: "var(--text-muted)" }}>—</span>}</td>
+                          <td><PhoneLink phone={r.phone} fallback="—" /></td>
                           <td style={{ color: "var(--text-muted)" }}>{r.email || "—"}</td>
                           <td><span style={{ maxWidth: "180px", display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.jobAddress || "—"}</span></td>
                         </tr>
@@ -533,13 +534,13 @@ export default function ImportCustomersModal({ onClose, onSuccess }: ImportCusto
                       <div className="grid grid-cols-2 gap-3 text-[11px]">
                         <div className="rounded p-2" style={{ background: "var(--bg-primary)", border: "1px solid var(--border-color)" }}>
                           <div className="font-semibold mb-1" style={{ color: "var(--text-secondary)" }}>Existing</div>
-                          <div><span style={{ color: "var(--text-muted)" }}>Phone:</span> {c.existing.phone || "—"}</div>
+                          <div><span style={{ color: "var(--text-muted)" }}>Phone:</span> <PhoneLink phone={c.existing.phone} fallback="—" /></div>
                           <div><span style={{ color: "var(--text-muted)" }}>Email:</span> {c.existing.email || "—"}</div>
                           <div><span style={{ color: "var(--text-muted)" }}>Address:</span> {c.existing.jobAddress || "—"}</div>
                         </div>
                         <div className="rounded p-2" style={{ background: "rgba(249,115,22,0.04)", border: "1px solid rgba(249,115,22,0.2)" }}>
                           <div className="font-semibold mb-1" style={{ color: "var(--accent-orange)" }}>Imported</div>
-                          <div style={{ background: c.differences.some(d => d.field === "phone") ? "rgba(245,158,11,0.15)" : undefined, borderRadius: "3px", padding: "1px 3px" }}><span style={{ color: "var(--text-muted)" }}>Phone:</span> {c.imported.phone || "—"}</div>
+                          <div style={{ background: c.differences.some(d => d.field === "phone") ? "rgba(245,158,11,0.15)" : undefined, borderRadius: "3px", padding: "1px 3px" }}><span style={{ color: "var(--text-muted)" }}>Phone:</span> <PhoneLink phone={c.imported.phone} fallback="—" /></div>
                           <div style={{ background: c.differences.some(d => d.field === "email") ? "rgba(245,158,11,0.15)" : undefined, borderRadius: "3px", padding: "1px 3px" }}><span style={{ color: "var(--text-muted)" }}>Email:</span> {c.imported.email || "—"}</div>
                           <div style={{ background: c.differences.some(d => d.field === "jobAddress") ? "rgba(245,158,11,0.15)" : undefined, borderRadius: "3px", padding: "1px 3px" }}><span style={{ color: "var(--text-muted)" }}>Address:</span> {c.imported.jobAddress || "—"}</div>
                         </div>

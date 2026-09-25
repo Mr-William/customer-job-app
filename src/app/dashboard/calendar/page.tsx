@@ -5,6 +5,7 @@ import CalendarAddJobModal, {
   CustomerOption,
 } from "@/components/CalendarAddJobModal";
 import EditJobModal from "@/components/EditJobModal";
+import PhoneLink from "@/components/PhoneLink";
 import { getDisplayName } from "@/lib/customerName";
 import {
   CalendarJob,
@@ -1581,7 +1582,7 @@ function CalendarInner() {
                   }}
                 >
                   <div className="text-sm" style={{ color: "var(--text-secondary)" }}>
-                    📞 {detailJob.customer.phone || "No phone"}
+                    📞 <PhoneLink phone={detailJob.customer.phone} />
                   </div>
                   {detailJob.customer.email && (
                     <div className="text-sm" style={{ color: "var(--text-secondary)" }}>

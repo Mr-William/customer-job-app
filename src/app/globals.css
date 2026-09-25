@@ -69,6 +69,22 @@ body {
   color: var(--text-muted);
 }
 
+/* Tap-to-call links */
+.dr-phone-link {
+  color: var(--accent-blue-light);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.dr-phone-link:hover {
+  color: var(--accent-orange-light);
+}
+
+.dr-phone-link:focus-visible {
+  outline: 2px solid var(--accent-orange);
+  outline-offset: 2px;
+}
+
 /* Buttons */
 .dr-btn-primary {
   background: var(--accent-orange);

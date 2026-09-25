@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { searchParams } = new URL(req.url);
-  const search = searchParams.get("search") || "";
+  const search = (searchParams.get("search") || "").trim();
   const statusFilter = searchParams.get("status") || "";
   const billFilter = searchParams.get("bill") || "";
   const compact = searchParams.get("compact") === "1";
