@@ -3,6 +3,7 @@ import { useEffect, useState, useCallback } from "react";
 import AddJobModal from "@/components/AddJobModal";
 import EditJobModal from "@/components/EditJobModal";
 import ImportCustomersModal from "@/components/ImportCustomersModal";
+import PhoneLink from "@/components/PhoneLink";
 import { getDisplayName } from "@/lib/customerName";
 
 interface Job {
@@ -280,7 +281,7 @@ export default function CustomersPage() {
                   </div>
                   <div className="mt-2 space-y-1">
                     <div className="text-sm" style={{ color: "var(--text-secondary)" }}>
-                      📞 {customer.phone || <span style={{ color: "var(--text-muted)" }}>No phone</span>}
+                      📞 <PhoneLink phone={customer.phone} />
                       {customer.email && <span className="ml-4">✉️ {customer.email}</span>}
                     </div>
                     <div className="text-sm" style={{ color: "var(--text-secondary)" }}>
@@ -458,7 +459,10 @@ export default function CustomersPage() {
               </div>
               <div>
                 <label className="dr-label">Phone *</label>
-                <input className="dr-input" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} required />
+                <input className="dr-input" type="tel" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} required />
+                {editPhone.trim() && (
+                  <div className="text-xs mt-1"><PhoneLink phone={editPhone} fallback={null} label="Call number" /></div>
+                )}
               </div>
               <div>
                 <label className="dr-label">Email (optional)</label>

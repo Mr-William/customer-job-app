@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import AddJobModal from "@/components/AddJobModal";
+import PhoneLink from "@/components/PhoneLink";
 
 export default function AddCustomerPage() {
   const router = useRouter();
@@ -213,6 +214,9 @@ export default function AddCustomerPage() {
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
             />
+            {phone.trim() && (
+              <div className="text-xs mt-1"><PhoneLink phone={phone} fallback={null} label="Call number" /></div>
+            )}
           </div>
 
           {/* Email */}
