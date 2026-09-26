@@ -97,7 +97,7 @@ export default function UpcomingStrip() {
       ) : total === 0 && unscheduledCount === 0 ? (
         <p className="text-sm" style={{ color: "var(--text-muted)" }}>
           Nothing scheduled for the next 7 days.{" "}
-          <Link href="/dashboard/calendar" style={{ color: "var(--accent-orange)" }}>
+          <br><Link href="/dashboard/calendar" style={{ color: "var(--accent-orange)" }}>
             Schedule work →
           </Link>
         </p>
