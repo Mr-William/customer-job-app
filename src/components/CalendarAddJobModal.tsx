@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import PhoneLink from "@/components/PhoneLink";
+import AddressAutocomplete from "@/components/AddressAutocomplete";
 
 export interface CustomerOption {
   name: string;
@@ -225,18 +226,17 @@ export default function CalendarAddJobModal({
           {/* Optional extras */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="dr-label">
+              <label className="dr-label" htmlFor="calendar-job-address">
                 Job Address{" "}
                 <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>
                   (new customers only)
                 </span>
               </label>
-              <input
-                className="dr-input"
-                type="text"
+              <AddressAutocomplete
+                id="calendar-job-address"
                 placeholder="Optional"
                 value={jobAddress}
-                onChange={(e) => setJobAddress(e.target.value)}
+                onChange={setJobAddress}
               />
             </div>
             <div>

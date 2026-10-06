@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import AddJobModal from "@/components/AddJobModal";
 import PhoneLink from "@/components/PhoneLink";
+import AddressAutocomplete from "@/components/AddressAutocomplete";
 
 export default function AddCustomerPage() {
   const router = useRouter();
@@ -236,13 +237,14 @@ export default function AddCustomerPage() {
 
           {/* Job Address */}
           <div>
-            <label className="dr-label">Job Address *</label>
-            <textarea
-              className="dr-input"
+            <label className="dr-label" htmlFor="add-customer-address">Job Address *</label>
+            <AddressAutocomplete
+              id="add-customer-address"
+              multiline
               rows={2}
               placeholder="123 Main St, St. Louis, MO 63101"
               value={jobAddress}
-              onChange={(e) => setJobAddress(e.target.value)}
+              onChange={setJobAddress}
               required
               style={{ resize: "vertical" }}
             />
