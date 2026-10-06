@@ -137,6 +137,10 @@ SMTP_PASS=your-app-password
 
 # Where approval request emails are sent
 ADMIN_EMAIL=admin@yourdomain.com
+
+# Optional: address suggestions (autocomplete). Defaults to the public Photon
+# demo server. Only needed if you self-host a Photon instance.
+# ADDRESS_GEOCODER_URL=https://photon.yourdomain.com/api/
 ```
 
 Generate a secure JWT secret:
@@ -656,3 +660,41 @@ pm2 restart jobtracker  # Restart with new code
 | SSL certificate error | Run `sudo certbot renew --force-renewal` |
 | Permission denied on clone | Use HTTPS URL or set up SSH keys for GitHub |
 | Drizzle migration fails | Ensure the PostgreSQL user has GRANT ALL on the database and schema |
+| No address suggestions while typing | The app server likely cannot reach the geocoder. Check with `curl -sS -m 5 -o /dev/null -w '%{http_code}\n' 'https://photon.komoot.io/api/?q=test'` (expect `200`) and `pm2 logs jobtracker --lines 50 --nostream \| grep address-suggestions` for the exact cause. Suggestions still work in the browser when the server is blocked, and a fallback (US Census geocoder) covers complete addresses. See "Address suggestions" below. |
+
+### Address suggestions (autocomplete)
+
+The job address fields suggest US addresses as you type. Suggestions come from a
+public geocoding service, tried in this order:
+
+1. **Photon** (`https://photon.komoot.io/api/`) — street-level autocomplete.
+2. **US Census geocoder** — street-level, but only for complete addresses.
+3. **Zippopotam.us** — ZIP → city/state, used for bare ZIP queries.
+
+If all three are unreachable *from the server*, the browser asks Photon directly
+instead, so suggestions keep working as long as the user's own network can reach
+it. When everything fails the field says so and the address can still be typed by
+hand — saving a customer or job never depends on suggestions.
+
+Only the first attempt contacts the providers: results are cached for 5 minutes
+(in the browser and on the server), and after a failure a provider is paused for
+a minute so the logs stay readable and typing stays responsive.
+
+One thing to watch on a busy day: every user in the same office shares a public
+IP, and the Nginx `api` zone above allows 10 requests/second per IP. Typing an
+address costs roughly three requests per second, so if several people type at
+once (or the app starts returning 503 for these calls) raise the zone's `burst`
+or `rate` in `/etc/nginx/sites-available/jobtracker` and reload Nginx.
+
+Check the server's outbound access if suggestions are missing:
+
+```bash
+curl -sS -m 5 -o /dev/null -w '%{http_code}\n' 'https://photon.komoot.io/api/?q=test'   # expect 200
+pm2 logs jobtracker --lines 50 --nostream | grep address-suggestions
+```
+
+`ECONNRESET`, `ENOTFOUND`, or `HTTP 429` in those logs mean the server cannot use
+Photon (firewall, DNS, or rate limiting). Fix the egress — or run your own Photon
+instance (two files and a JVM, see https://github.com/komoot/photon) and set
+`ADDRESS_GEOCODER_URL=https://photon.yourdomain.com/api/` — and the browser
+fallback disappears on its own.

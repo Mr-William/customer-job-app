@@ -3,10 +3,8 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { ChangeEvent, CSSProperties, KeyboardEvent } from "react";
-
-interface AddressSuggestion {
-  label: string;
-}
+import { MIN_QUERY_LENGTH, type AddressSuggestion, type SuggestionProvider } from "@/lib/geocoding";
+import { lookupSuggestions } from "@/lib/addressLookup";
 
 interface AddressAutocompleteProps {
   value: string;
@@ -31,7 +29,6 @@ interface DropdownPosition {
   maxHeight: number;
 }
 
-const MIN_QUERY_LENGTH = 3;
 const DEBOUNCE_MS = 300;
 
 export default function AddressAutocomplete({
@@ -52,6 +49,7 @@ export default function AddressAutocomplete({
   const listboxId = `${inputId}-suggestions`;
   const [isOpen, setIsOpen] = useState(false);
   const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([]);
+  const [provider, setProvider] = useState<SuggestionProvider | null>(null);
   const [status, setStatus] = useState<"idle" | "loading" | "empty" | "error">("idle");
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const [dropdownPosition, setDropdownPosition] = useState<DropdownPosition | null>(null);
@@ -104,19 +102,15 @@ export default function AddressAutocomplete({
 
     const timer = window.setTimeout(async () => {
       try {
-        const response = await fetch(
-          `/api/address-suggestions?q=${encodeURIComponent(query)}`,
-          { signal: controller.signal }
-        );
-        if (!response.ok) throw new Error("Address lookup failed");
-
-        const data = (await response.json()) as { suggestions?: AddressSuggestion[] };
-        const nextSuggestions = Array.isArray(data.suggestions) ? data.suggestions : [];
-        setSuggestions(nextSuggestions);
-        setStatus(nextSuggestions.length > 0 ? "idle" : "empty");
+        const result = await lookupSuggestions(query, controller.signal);
+        if (controller.signal.aborted) return;
+        setSuggestions(result.suggestions);
+        setProvider(result.provider);
+        setStatus(result.suggestions.length > 0 ? "idle" : "empty");
       } catch {
         if (controller.signal.aborted) return;
         setSuggestions([]);
+        setProvider(null);
         setStatus("error");
       }
     }, DEBOUNCE_MS);
@@ -149,6 +143,7 @@ export default function AddressAutocomplete({
     setIsOpen(false);
     setDropdownPosition(null);
     setSuggestions([]);
+    setProvider(null);
     setStatus("idle");
     setHighlightedIndex(-1);
   }
@@ -266,8 +261,23 @@ export default function AddressAutocomplete({
         )}
 
         <div className="address-autocomplete__attribution">
-          Address suggestions by <a href="https://photon.komoot.io/" target="_blank" rel="noreferrer">Photon</a>. ©{" "}
-          <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap contributors</a>.
+          {provider === "zippopotam" ? (
+            <>
+              ZIP suggestions by <a href="https://zippopotam.us/" target="_blank" rel="noreferrer">Zippopotam.us</a>.
+            </>
+          ) : provider === "census" ? (
+            <>
+              Address suggestions by the{" "}
+              <a href="https://www.census.gov/programs-surveys/geography/technical-documentation/complete-technical-documentation/geocoder.html" target="_blank" rel="noreferrer">
+                U.S. Census Bureau
+              </a>.
+            </>
+          ) : (
+            <>
+              Address suggestions by <a href="https://photon.komoot.io/" target="_blank" rel="noreferrer">Photon</a>. ©{" "}
+              <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap contributors</a>.
+            </>
+          )}
         </div>
       </div>
     ) : null;

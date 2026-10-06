@@ -143,6 +143,22 @@ sudo apt list --upgradable | head # what's pending (unattended-upgrades handles 
 sudo journalctl --vacuum-time=7d  # trim system journal to 7 days
 ```
 
+## 12. Address suggestions not appearing
+
+```bash
+# Can the server reach the geocoder? (expect 200)
+curl -sS -m 5 -o /dev/null -w '%{http_code}\n' 'https://photon.komoot.io/api/?q=test'
+
+# Why did the app fall back? (ECONNRESET / ENOTFOUND / HTTP 429)
+pm2 logs jobtracker --lines 100 --nostream | grep address-suggestions
+```
+
+The job address boxes always keep working in the browser even when the server is
+blocked, and a fallback geocoder covers full addresses — so this is cosmetic for
+users, but worth fixing. Options: unblock outbound HTTPS to `photon.komoot.io`
+(ufw only filters inbound, so check any upstream/provider firewall) or self-host
+Photon and set `ADDRESS_GEOCODER_URL` in `.env`, then `pm2 restart jobtracker`.
+
 ---
 
 ### The three questions to ask every few weeks
