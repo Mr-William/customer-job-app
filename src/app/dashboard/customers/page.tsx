@@ -4,6 +4,7 @@ import AddJobModal from "@/components/AddJobModal";
 import EditJobModal from "@/components/EditJobModal";
 import ImportCustomersModal from "@/components/ImportCustomersModal";
 import PhoneLink from "@/components/PhoneLink";
+import AddressAutocomplete from "@/components/AddressAutocomplete";
 import { getDisplayName } from "@/lib/customerName";
 
 interface Job {
@@ -469,12 +470,13 @@ export default function CustomersPage() {
                 <input className="dr-input" type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} />
               </div>
               <div>
-                <label className="dr-label">Job Address *</label>
-                <textarea
-                  className="dr-input"
+                <label className="dr-label" htmlFor="edit-customer-address">Job Address *</label>
+                <AddressAutocomplete
+                  id="edit-customer-address"
+                  multiline
                   rows={2}
                   value={editAddress}
-                  onChange={(e) => setEditAddress(e.target.value)}
+                  onChange={setEditAddress}
                   required
                   style={{ resize: "vertical" }}
                 />

@@ -3,6 +3,7 @@ import { useState, useCallback } from "react";
 import EditJobModal from "@/components/EditJobModal";
 import AddJobModal from "@/components/AddJobModal";
 import PhoneLink from "@/components/PhoneLink";
+import AddressAutocomplete from "@/components/AddressAutocomplete";
 import { getDisplayName } from "@/lib/customerName";
 
 interface Job {
@@ -291,9 +292,12 @@ export default function SearchPage() {
                             onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))} />
                         </div>
                         <div className="sm:col-span-2">
-                          <label className="dr-label">Job Address</label>
-                          <input className="dr-input" value={editForm.jobAddress}
-                            onChange={(e) => setEditForm((f) => ({ ...f, jobAddress: e.target.value }))} />
+                          <label className="dr-label" htmlFor="search-edit-customer-address">Job Address</label>
+                          <AddressAutocomplete
+                            id="search-edit-customer-address"
+                            value={editForm.jobAddress}
+                            onChange={(jobAddress) => setEditForm((f) => ({ ...f, jobAddress }))}
+                          />
                         </div>
                       </div>
                       <div className="flex gap-3">

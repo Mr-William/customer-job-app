@@ -69,6 +69,87 @@ body {
   color: var(--text-muted);
 }
 
+/* Address autocomplete */
+.address-autocomplete {
+  position: relative;
+  width: 100%;
+}
+
+.address-autocomplete__dropdown {
+  position: fixed;
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.42);
+}
+
+.address-autocomplete__list {
+  max-height: 240px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+}
+
+.address-autocomplete__option {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  width: 100%;
+  padding: 10px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.45;
+  text-align: left;
+  cursor: pointer;
+}
+
+.address-autocomplete__option:hover,
+.address-autocomplete__option[aria-selected="true"] {
+  background: rgba(249, 115, 22, 0.12);
+  color: var(--accent-orange-light);
+}
+
+.address-autocomplete__option:focus-visible {
+  outline: 2px solid var(--accent-orange);
+  outline-offset: -2px;
+}
+
+.address-autocomplete__pin {
+  flex: 0 0 auto;
+  font-size: 13px;
+}
+
+.address-autocomplete__message {
+  padding: 12px 14px;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.address-autocomplete__attribution {
+  padding: 7px 10px;
+  border-top: 1px solid var(--border-color);
+  color: var(--text-muted);
+  font-size: 10px;
+  text-align: right;
+}
+
+.address-autocomplete__attribution a {
+  color: var(--text-secondary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.address-autocomplete__attribution a:hover {
+  color: var(--accent-orange-light);
+}
+
 /* Tap-to-call links */
 .dr-phone-link {
   color: var(--accent-blue-light);
