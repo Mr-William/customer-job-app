@@ -33,8 +33,7 @@ export const db: NodePgDatabase = new Proxy({} as NodePgDatabase, {
 
 // ─── Lightweight schema self-heal ─────────────────────────────────────────────
 // The project has no migrations folder (schema is synced with `drizzle-kit push`),
-// so additive column changes are applied idempotently at startup AND on-demand
-// from the calendar API. Safe to run repeatedly.
+// so additive calendar columns are applied idempotently at startup AND on-demand.
 export async function ensureCalendarColumns() {
   try {
     if (!process.env.DATABASE_URL) return; // dev without DB — callers handle it
@@ -46,6 +45,22 @@ export async function ensureCalendarColumns() {
     );
   } catch (error) {
     console.error("Failed to ensure calendar columns:", error);
+  }
+}
+
+// Calendar feeds are account-specific, so their bearer token is stored on users.
+// Keep this additive for installations that predate the subscription feature.
+export async function ensureCalendarFeedTokenColumn() {
+  try {
+    if (!process.env.DATABASE_URL) return;
+    await getDb().execute(
+      sql`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "calendar_feed_token" TEXT`
+    );
+    await getDb().execute(
+      sql`CREATE UNIQUE INDEX IF NOT EXISTS "users_calendar_feed_token_unique" ON "users" ("calendar_feed_token")`
+    );
+  } catch (error) {
+    console.error("Failed to ensure calendar feed token column:", error);
   }
 }
 

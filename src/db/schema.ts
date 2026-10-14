@@ -9,20 +9,27 @@ import {
   real,
   date,
   time,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 
 // ─── Users ───────────────────────────────────────────────────────────────────
-export const users = pgTable("users", {
-  id: serial("id").primaryKey(),
-  firstName: varchar("first_name", { length: 100 }).notNull(),
-  lastName: varchar("last_name", { length: 100 }).notNull(),
-  email: varchar("email", { length: 255 }).notNull().unique(),
-  passwordHash: text("password_hash").notNull(),
-  role: varchar("role", { length: 50 }).notNull().default("user"), // 'admin' | 'user'
-  approved: boolean("approved").notNull().default(false),
-  approvalToken: text("approval_token"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+export const users = pgTable(
+  "users",
+  {
+    id: serial("id").primaryKey(),
+    firstName: varchar("first_name", { length: 100 }).notNull(),
+    lastName: varchar("last_name", { length: 100 }).notNull(),
+    email: varchar("email", { length: 255 }).notNull().unique(),
+    passwordHash: text("password_hash").notNull(),
+    role: varchar("role", { length: 50 }).notNull().default("user"), // 'admin' | 'user'
+    approved: boolean("approved").notNull().default(false),
+    approvalToken: text("approval_token"),
+    // Opaque bearer token used by read-only calendar subscription clients.
+    calendarFeedToken: text("calendar_feed_token"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("users_calendar_feed_token_unique").on(table.calendarFeedToken)]
+);
 
 // ─── Customers ────────────────────────────────────────────────────────────────
 export const customers = pgTable("customers", {
