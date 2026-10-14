@@ -1,5 +1,5 @@
 "use client";
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import CalendarAddJobModal, {
   CustomerOption,
@@ -269,6 +269,12 @@ function CalendarInner() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [editJob, setEditJob] = useState<CalendarJob | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
+  const [syncModalOpen, setSyncModalOpen] = useState(false);
+  const [syncFeedUrl, setSyncFeedUrl] = useState("");
+  const [syncLoading, setSyncLoading] = useState(false);
+  const [syncError, setSyncError] = useState("");
+  const [syncCopied, setSyncCopied] = useState(false);
+  const feedUrlInputRef = useRef<HTMLInputElement>(null);
   const [toast, setToast] = useState("");
   const [toastKind, setToastKind] = useState<"success" | "error">("success");
 
@@ -342,14 +348,86 @@ function CalendarInner() {
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key !== "Escape") return;
-      if (editJob) setEditJob(null);
+      if (syncModalOpen) setSyncModalOpen(false);
+      else if (editJob) setEditJob(null);
       else if (showAddForm) setShowAddForm(false);
       else if (detailJob) setDetailJob(null);
       else if (dayPopupOpen) setDayPopupOpen(false);
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [editJob, showAddForm, detailJob, dayPopupOpen]);
+  }, [syncModalOpen, editJob, showAddForm, detailJob, dayPopupOpen]);
+
+  async function openCalendarSync() {
+    setSyncModalOpen(true);
+    setSyncLoading(true);
+    setSyncError("");
+    setSyncFeedUrl("");
+    setSyncCopied(false);
+    try {
+      const res = await fetch("/api/calendar/sync");
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.feedPath) {
+        throw new Error(data.error || "Could not prepare calendar sync.");
+      }
+      setSyncFeedUrl(new URL(data.feedPath, window.location.origin).toString());
+    } catch (error) {
+      setSyncError(error instanceof Error ? error.message : "Could not prepare calendar sync.");
+    } finally {
+      setSyncLoading(false);
+    }
+  }
+
+  async function resetCalendarSync() {
+    if (
+      !window.confirm(
+        "Reset this calendar link? Your existing device subscription will stop updating. You will need to add the new link to keep syncing."
+      )
+    ) {
+      return;
+    }
+
+    setSyncLoading(true);
+    setSyncError("");
+    setSyncFeedUrl("");
+    setSyncCopied(false);
+    try {
+      const res = await fetch("/api/calendar/sync", { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.feedPath) {
+        throw new Error(data.error || "Could not reset calendar sync.");
+      }
+      setSyncFeedUrl(new URL(data.feedPath, window.location.origin).toString());
+    } catch (error) {
+      setSyncError(error instanceof Error ? error.message : "Could not reset calendar sync.");
+    } finally {
+      setSyncLoading(false);
+    }
+  }
+
+  async function copyCalendarFeedUrl() {
+    if (!syncFeedUrl) return;
+    setSyncError("");
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(syncFeedUrl);
+      } else {
+        throw new Error("Clipboard unavailable");
+      }
+      setSyncCopied(true);
+      window.setTimeout(() => setSyncCopied(false), 2500);
+    } catch {
+      const input = feedUrlInputRef.current;
+      input?.focus();
+      input?.select();
+      const copied = input ? document.execCommand("copy") : false;
+      setSyncCopied(copied);
+      if (!copied) {
+        setSyncError("Copy is unavailable here. Select the URL and copy it manually.");
+      }
+      if (copied) window.setTimeout(() => setSyncCopied(false), 2500);
+    }
+  }
 
   function showToast(msg: string, isError = false) {
     setToast(msg);
@@ -615,6 +693,9 @@ function CalendarInner() {
         <div className="flex gap-2 flex-wrap">
           <button className="dr-btn-secondary" onClick={goToday}>
             Today
+          </button>
+          <button className="dr-btn-secondary" onClick={() => void openCalendarSync()}>
+            🔄 Sync to device
           </button>
           <button className="dr-btn-primary" onClick={() => setShowAddForm(true)}>
             ➕ Add Job
@@ -1766,6 +1847,195 @@ function CalendarInner() {
             showToast("✓ Job updated.");
           }}
         />
+      )}
+
+      {/* ── Device calendar sync ── */}
+      {syncModalOpen && (
+        <div
+          className="modal-overlay"
+          role="presentation"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setSyncModalOpen(false);
+          }}
+        >
+          <section
+            className="modal-content slide-in"
+            style={{ maxWidth: "620px" }}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="calendar-sync-title"
+          >
+            <div className="flex items-start justify-between gap-4 mb-4">
+              <div>
+                <h2
+                  id="calendar-sync-title"
+                  className="text-xl font-bold"
+                  style={{ color: "var(--accent-orange)" }}
+                >
+                  🔄 Sync with your calendar
+                </h2>
+                <p className="text-sm mt-1" style={{ color: "var(--text-secondary)" }}>
+                  Subscribe once to keep scheduled jobs on your device calendar.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSyncModalOpen(false)}
+                aria-label="Close calendar sync dialog"
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "var(--text-muted)",
+                  fontSize: "24px",
+                  cursor: "pointer",
+                  lineHeight: 1,
+                  padding: "2px 4px",
+                }}
+              >
+                ×
+              </button>
+            </div>
+
+            <p className="text-sm mb-4" style={{ color: "var(--text-secondary)" }}>
+              Your calendar app reads a private, read-only feed. Changes you make here—new jobs,
+              reschedules, and cancellations—appear the next time that app refreshes it.
+            </p>
+
+            {syncLoading && (
+              <div
+                className="text-sm rounded-lg p-4 mb-4"
+                role="status"
+                style={{ background: "var(--bg-tertiary)", color: "var(--text-secondary)" }}
+              >
+                Preparing your subscription link…
+              </div>
+            )}
+            {syncError && (
+              <div className="alert-error mb-4" role="alert">
+                {syncError}
+              </div>
+            )}
+
+            {!syncLoading && syncFeedUrl && (
+              <>
+                <div className="mb-4">
+                  <label htmlFor="calendar-feed-url" className="dr-label">
+                    Private calendar URL
+                  </label>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <input
+                      ref={feedUrlInputRef}
+                      id="calendar-feed-url"
+                      className="dr-input"
+                      type="url"
+                      readOnly
+                      value={syncFeedUrl}
+                      onFocus={(e) => e.currentTarget.select()}
+                      aria-describedby="calendar-feed-help"
+                      style={{ minWidth: 0, fontSize: "12px" }}
+                    />
+                    <button
+                      type="button"
+                      className="dr-btn-secondary"
+                      onClick={() => void copyCalendarFeedUrl()}
+                      style={{ justifyContent: "center", flexShrink: 0 }}
+                    >
+                      {syncCopied ? "✓ Copied" : "Copy URL"}
+                    </button>
+                  </div>
+                  <p
+                    id="calendar-feed-help"
+                    className="text-xs mt-2"
+                    style={{ color: "var(--text-muted)" }}
+                  >
+                    Use this HTTPS link for Google Calendar or Outlook. It includes all scheduled
+                    jobs, regardless of the employee filter.
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap gap-2 mb-5">
+                  <a
+                    className="dr-btn-primary"
+                    href={syncFeedUrl.replace(/^https?:\/\//i, "webcal://")}
+                  >
+                    📅 Open in calendar app
+                  </a>
+                  <a
+                    className="dr-btn-secondary"
+                    href={`${syncFeedUrl}?download=1`}
+                    download="job-calendar.ics"
+                  >
+                    ⬇ Download .ics snapshot
+                  </a>
+                </div>
+
+                <div
+                  className="rounded-lg p-4 mb-4"
+                  style={{
+                    background: "var(--bg-tertiary)",
+                    border: "1px solid var(--border-color)",
+                  }}
+                >
+                  <h3 className="text-sm font-semibold mb-2" style={{ color: "var(--text-primary)" }}>
+                    Quick setup
+                  </h3>
+                  <ol
+                    className="text-xs space-y-2"
+                    style={{ color: "var(--text-secondary)", paddingLeft: "20px", margin: 0 }}
+                  >
+                    <li>
+                      <strong>Apple Calendar:</strong> use “Open in calendar app,” or add a calendar
+                      subscription and paste the URL above.
+                    </li>
+                    <li>
+                      <strong>Google Calendar:</strong> in Calendar settings, choose “Add calendar” →
+                      “From URL” and paste the HTTPS link.
+                    </li>
+                    <li>
+                      <strong>Outlook:</strong> choose “Add calendar” → “Subscribe from web” and paste
+                      the HTTPS link.
+                    </li>
+                  </ol>
+                </div>
+
+                <p className="text-xs mb-4" style={{ color: "var(--text-muted)" }}>
+                  Subscriptions are read-only and refresh on the calendar provider&apos;s schedule.
+                  Timed jobs appear as one-hour events at the scheduled local time; jobs without a time appear as all-day events.
+                  Downloading an .ics file is a one-time snapshot.
+                </p>
+
+                <div
+                  className="flex items-start justify-between gap-4 flex-wrap rounded-lg p-3"
+                  style={{
+                    background: "rgba(245,158,11,0.08)",
+                    border: "1px solid rgba(245,158,11,0.28)",
+                  }}
+                >
+                  <p className="text-xs m-0 flex-1" style={{ color: "var(--warning)" }}>
+                    This private link exposes customer names, job details, and addresses to anyone
+                    who has it; your calendar provider will receive those details. Treat it like a
+                    password. Reset it if shared or exposed; the old subscription will stop updating.
+                  </p>
+                  <button
+                    type="button"
+                    className="dr-btn-secondary"
+                    onClick={() => void resetCalendarSync()}
+                    disabled={syncLoading}
+                    style={{ padding: "7px 10px", fontSize: "12px", flexShrink: 0 }}
+                  >
+                    Reset link
+                  </button>
+                </div>
+              </>
+            )}
+
+            {!syncLoading && !syncFeedUrl && !syncError && (
+              <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+                No subscription link is available yet.
+              </p>
+            )}
+          </section>
+        </div>
       )}
     </div>
   );
