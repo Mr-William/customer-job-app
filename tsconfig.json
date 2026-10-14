@@ -14,6 +14,9 @@
     "module": "esnext",
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
+    // src/lib/addressLookup.ts imports "./geocoding.ts" so that Node's test
+    // runner (--experimental-strip-types) can resolve it; TS needs this flag.
+    "allowImportingTsExtensions": true,
     "isolatedModules": true,
     "jsx": "react-jsx",
     "incremental": true,
