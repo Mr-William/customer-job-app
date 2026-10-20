@@ -43,6 +43,9 @@ export async function ensureCalendarColumns() {
     await getDb().execute(
       sql`ALTER TABLE "jobs" ADD COLUMN IF NOT EXISTS "scheduled_time" TIME`
     );
+    await getDb().execute(
+      sql`ALTER TABLE "jobs" ADD COLUMN IF NOT EXISTS "scheduled_end_time" TIME`
+    );
   } catch (error) {
     console.error("Failed to ensure calendar columns:", error);
   }

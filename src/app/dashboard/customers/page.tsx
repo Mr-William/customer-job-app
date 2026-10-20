@@ -4,6 +4,7 @@ import AddJobModal from "@/components/AddJobModal";
 import EditJobModal from "@/components/EditJobModal";
 import ImportCustomersModal from "@/components/ImportCustomersModal";
 import PhoneLink from "@/components/PhoneLink";
+import ScheduledLine from "@/components/ScheduledLine";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
 import { getDisplayName } from "@/lib/customerName";
 
@@ -20,6 +21,9 @@ interface Job {
   billPaid: boolean;
   additionalDetails: string | null;
   createdAt: string;
+  scheduledDate?: string | null;
+  scheduledTime?: string | null;
+  scheduledEndTime?: string | null;
 }
 
 interface Customer {
@@ -353,6 +357,11 @@ export default function CustomersPage() {
                                 <JobStatusBadge job={job} />
                                 <BillingBadge job={job} />
                               </div>
+                              <ScheduledLine
+                                date={job.scheduledDate}
+                                start={job.scheduledTime}
+                                end={job.scheduledEndTime}
+                              />
                               <p className="text-xs mb-1" style={{ color: "var(--text-secondary)" }}>
                                 <strong>Work:</strong> {job.workCompleted}
                               </p>

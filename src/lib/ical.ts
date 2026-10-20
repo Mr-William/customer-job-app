@@ -7,6 +7,7 @@ export interface ICalendarJob {
   jobAddress?: string | null;
   scheduledDate: string | Date | null;
   scheduledTime?: string | null;
+  scheduledEndTime?: string | null;
   jobCompleted?: boolean;
   jobPartiallyCompleted?: boolean;
   additionalWorkRecommended?: boolean;
@@ -125,6 +126,7 @@ function eventLines(job: ICalendarJob): string[] | null {
   if (!date) return null;
 
   const time = timeKey(job.scheduledTime);
+  const endTime = timeKey(job.scheduledEndTime);
   const stamp = compactUtcTimestamp(job.updatedAt);
   const summary = `${job.jobCompleted ? "✓ " : ""}${job.customerName} — ${job.workCompleted}`;
   const description = [
@@ -146,7 +148,12 @@ function eventLines(job: ICalendarJob): string[] | null {
   if (time) {
     const hhmmss = time.replace(/:/g, "").padEnd(6, "0");
     lines.push(`DTSTART:${compactDate(date)}T${hhmmss}`);
-    lines.push(`DTEND:${addOneHour(date, time)}`);
+    // Respect a real end time when one was entered; otherwise show one hour.
+    lines.push(
+      endTime && endTime > time
+        ? `DTEND:${compactDate(date)}T${endTime.replace(/:/g, "").padEnd(6, "0")}`
+        : `DTEND:${addOneHour(date, time)}`
+    );
   } else {
     lines.push(`DTSTART;VALUE=DATE:${compactDate(date)}`);
     lines.push(`DTEND;VALUE=DATE:${nextDate(date)}`);

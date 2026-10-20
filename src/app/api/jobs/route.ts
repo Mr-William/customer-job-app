@@ -25,6 +25,7 @@ export async function POST(req: NextRequest) {
       additionalDetails,
       scheduledDate,
       scheduledTime,
+      scheduledEndTime,
     } = body;
 
     if (!customerId || !employeeName || totalHoursWorked === undefined || !workCompleted) {
@@ -35,6 +36,15 @@ export async function POST(req: NextRequest) {
     }
     if (scheduledTime && !TIME_RE.test(scheduledTime)) {
       return NextResponse.json({ error: "Invalid scheduled time." }, { status: 400 });
+    }
+    if (scheduledEndTime && !TIME_RE.test(scheduledEndTime)) {
+      return NextResponse.json({ error: "Invalid scheduled end time." }, { status: 400 });
+    }
+    if (scheduledTime && scheduledEndTime && scheduledEndTime <= scheduledTime) {
+      return NextResponse.json(
+        { error: "End time must be after start time." },
+        { status: 400 }
+      );
     }
 
     const [job] = await db
@@ -52,6 +62,7 @@ export async function POST(req: NextRequest) {
         additionalDetails: additionalDetails || null,
         scheduledDate: scheduledDate || null,
         scheduledTime: scheduledTime || null,
+        scheduledEndTime: scheduledEndTime || null,
       })
       .returning();
 

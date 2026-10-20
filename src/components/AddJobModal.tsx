@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { hoursBetween } from "@/lib/time";
 
 interface AddJobModalProps {
   customerId: number;
@@ -26,11 +27,42 @@ export default function AddJobModal({
     "Materials used:\n\nAdditional notes:"
   );
   const [scheduledDate, setScheduledDate] = useState("");
-  const [scheduledTime, setScheduledTime] = useState("");
+  const [scheduledStartTime, setScheduledStartTime] = useState("");
+  const [scheduledEndTime, setScheduledEndTime] = useState("");
+  // Once the user types their own hours we stop overwriting them from the times.
+  const [hoursEdited, setHoursEdited] = useState(false);
+
+  const computedHours = hoursBetween(scheduledStartTime, scheduledEndTime);
+  const invalidTimeRange =
+    computedHours === null &&
+    scheduledStartTime !== "" &&
+    scheduledEndTime !== "";
+
+  // Keep Total Hours in sync with the start/end boxes unless edited by hand.
+  function syncHours(start: string, end: string) {
+    if (hoursEdited) return;
+    const hours = hoursBetween(start, end);
+    if (hours !== null) setTotalHours(String(hours));
+    else if (start === "" || end === "") setTotalHours("");
+  }
+
+  function handleStartChange(value: string) {
+    setScheduledStartTime(value);
+    syncHours(value, scheduledEndTime);
+  }
+
+  function handleEndChange(value: string) {
+    setScheduledEndTime(value);
+    syncHours(scheduledStartTime, value);
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    if (invalidTimeRange) {
+      setError("End time must be after start time.");
+      return;
+    }
     setLoading(true);
 
     try {
@@ -49,7 +81,8 @@ export default function AddJobModal({
           billPaid: status === "completed" && billStatus === "paid",
           additionalDetails,
           scheduledDate: scheduledDate || null,
-          scheduledTime: scheduledTime || null,
+          scheduledTime: scheduledStartTime || null,
+          scheduledEndTime: scheduledEndTime || null,
         }),
       });
 
@@ -122,9 +155,17 @@ export default function AddJobModal({
               min="0"
               placeholder="e.g. 3.5"
               value={totalHours}
-              onChange={(e) => setTotalHours(e.target.value)}
+              onChange={(e) => {
+                setTotalHours(e.target.value);
+                setHoursEdited(true);
+              }}
               required
             />
+            {computedHours !== null && (
+              <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
+                Calculated from the start and end times — you can overwrite it.
+              </p>
+            )}
           </div>
 
           {/* Work Completed */}
@@ -226,29 +267,58 @@ export default function AddJobModal({
             </div>
           )}
 
-          {/* Scheduled Date + Time */}
+          {/* Scheduled Date + Start/End Time */}
           <div>
-            <label className="dr-label">
+            <label className="dr-label" htmlFor="add-job-scheduled-date">
               Scheduled Date{" "}
               <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>
                 (optional — shows on the calendar)
               </span>
             </label>
-            <div className="grid grid-cols-2 gap-4">
-              <input
-                className="dr-input"
-                type="date"
-                value={scheduledDate}
-                onChange={(e) => setScheduledDate(e.target.value)}
-              />
-              <input
-                className="dr-input"
-                type="time"
-                aria-label="Scheduled time (optional)"
-                value={scheduledTime}
-                onChange={(e) => setScheduledTime(e.target.value)}
-              />
+            <input
+              id="add-job-scheduled-date"
+              className="dr-input"
+              type="date"
+              value={scheduledDate}
+              onChange={(e) => setScheduledDate(e.target.value)}
+            />
+            <div className="grid grid-cols-2 gap-4 mt-3">
+              <div>
+                <label className="dr-label" htmlFor="add-job-start-time">
+                  Start Time{" "}
+                  <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>
+                    (optional)
+                  </span>
+                </label>
+                <input
+                  id="add-job-start-time"
+                  className="dr-input"
+                  type="time"
+                  value={scheduledStartTime}
+                  onChange={(e) => handleStartChange(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="dr-label" htmlFor="add-job-end-time">
+                  End Time{" "}
+                  <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>
+                    (optional)
+                  </span>
+                </label>
+                <input
+                  id="add-job-end-time"
+                  className="dr-input"
+                  type="time"
+                  value={scheduledEndTime}
+                  onChange={(e) => handleEndChange(e.target.value)}
+                />
+              </div>
             </div>
+            {invalidTimeRange && (
+              <p className="text-xs mt-1" style={{ color: "var(--danger, #ef4444)" }}>
+                End time must be after the start time.
+              </p>
+            )}
           </div>
 
           {/* Additional Details */}
@@ -277,7 +347,7 @@ export default function AddJobModal({
             <button
               type="submit"
               className="dr-btn-primary flex-1"
-              disabled={loading || !status}
+              disabled={loading || !status || invalidTimeRange}
               style={{ justifyContent: "center" }}
             >
               {loading ? "Saving..." : "Save Job"}

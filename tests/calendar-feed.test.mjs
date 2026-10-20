@@ -12,6 +12,7 @@ function job(overrides = {}) {
     jobAddress: "12 Main St, St. Louis, MO",
     scheduledDate: "2026-10-14",
     scheduledTime: null,
+    scheduledEndTime: null,
     jobCompleted: false,
     jobPartiallyCompleted: false,
     additionalWorkRecommended: false,
@@ -34,6 +35,20 @@ test("builds an RFC 5545 calendar with all-day and timed jobs", () => {
   assert.match(calendar, /DTSTART;VALUE=DATE:20261015\r\nDTEND;VALUE=DATE:20261016/);
   assert.match(calendar, /DTSTAMP:20261013T182211Z/);
   assert.match(calendar, /LOCATION:12 Main St\\, St\. Louis\\, MO/);
+});
+
+test("uses the entered end time for the event duration", () => {
+  const calendar = buildCalendarIcs([
+    job({ id: 31, scheduledTime: "09:00:00", scheduledEndTime: "11:30:00" }),
+  ]);
+  assert.match(calendar, /DTSTART:20261014T090000\r\nDTEND:20261014T113000/);
+});
+
+test("ignores an end time that is not after the start time", () => {
+  const calendar = buildCalendarIcs([
+    job({ id: 32, scheduledTime: "09:00:00", scheduledEndTime: "08:00:00" }),
+  ]);
+  assert.match(calendar, /DTSTART:20261014T090000\r\nDTEND:20261014T100000/);
 });
 
 test("escapes text values so customer data cannot inject calendar properties", () => {

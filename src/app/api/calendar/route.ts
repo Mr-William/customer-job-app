@@ -91,6 +91,7 @@ export async function GET(req: NextRequest) {
       ...job,
       scheduledDate: toDayKey(job.scheduledDate),
       scheduledTime: toTimeKey(job.scheduledTime),
+      scheduledEndTime: toTimeKey(job.scheduledEndTime),
       customer,
     }));
 
@@ -114,6 +115,7 @@ export async function GET(req: NextRequest) {
         ...job,
         scheduledDate: toDayKey(job.scheduledDate),
         scheduledTime: toTimeKey(job.scheduledTime),
+        scheduledEndTime: toTimeKey(job.scheduledEndTime),
         customer,
       }));
       const [{ n }] = await db
@@ -139,7 +141,7 @@ export async function GET(req: NextRequest) {
 }
 
 // POST /api/calendar — schedule a new job from the calendar page.
-// Body: { scheduledDate, scheduledTime?, customerName, phone?, jobAddress?, workDetails, employeeName? }
+// Body: { scheduledDate, scheduledTime?, scheduledEndTime?, customerName, phone?, jobAddress?, workDetails, employeeName? }
 // Finds an existing customer by name (case-insensitive) or creates one.
 export async function POST(req: NextRequest) {
   const session = await getSession();
@@ -149,7 +151,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { scheduledDate, scheduledTime, customerName, phone, jobAddress, workDetails, employeeName } = body;
+    const { scheduledDate, scheduledTime, scheduledEndTime, customerName, phone, jobAddress, workDetails, employeeName } = body;
 
     if (!scheduledDate || !DATE_RE.test(scheduledDate)) {
       return NextResponse.json(
@@ -159,6 +161,9 @@ export async function POST(req: NextRequest) {
     }
     if (scheduledTime && !TIME_RE.test(scheduledTime)) {
       return NextResponse.json({ error: "Invalid scheduled time." }, { status: 400 });
+    }
+    if (scheduledEndTime && !TIME_RE.test(scheduledEndTime)) {
+      return NextResponse.json({ error: "Invalid scheduled end time." }, { status: 400 });
     }
     const name = (customerName || "").trim();
     if (!name) {
@@ -226,6 +231,7 @@ export async function POST(req: NextRequest) {
         additionalDetails: null,
         scheduledDate,
         scheduledTime: scheduledTime || null,
+        scheduledEndTime: scheduledEndTime || null,
       })
       .returning();
 
@@ -234,6 +240,7 @@ export async function POST(req: NextRequest) {
         ...job,
         scheduledDate: toDayKey(job.scheduledDate),
         scheduledTime: toTimeKey(job.scheduledTime),
+        scheduledEndTime: toTimeKey(job.scheduledEndTime),
         customer,
       },
       customer,
