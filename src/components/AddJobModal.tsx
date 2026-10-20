@@ -39,11 +39,14 @@ export default function AddJobModal({
     scheduledEndTime !== "";
 
   // Keep Total Hours in sync with the start/end boxes unless edited by hand.
+  // A user can save without an end time and fill it in later, so we only
+  // overwrite Total Hours when we have a valid start+end range to compute from.
+  // When either time is missing, leave Total Hours alone (the user can type it
+  // manually now or fill the end time in later).
   function syncHours(start: string, end: string) {
     if (hoursEdited) return;
     const hours = hoursBetween(start, end);
     if (hours !== null) setTotalHours(String(hours));
-    else if (start === "" || end === "") setTotalHours("");
   }
 
   function handleStartChange(value: string) {
@@ -215,11 +218,15 @@ export default function AddJobModal({
               }}
               required
             />
-            {computedHours !== null && (
+            {computedHours !== null ? (
               <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
                 Calculated from the start and end times — you can overwrite it.
               </p>
-            )}
+            ) : scheduledStartTime !== "" && scheduledEndTime === "" ? (
+              <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
+                No end time yet — enter Total Hours now or fill the End Time later by editing the job.
+              </p>
+            ) : null}
           </div>
 
           {/* Work Completed */}
