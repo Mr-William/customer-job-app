@@ -2,6 +2,7 @@
 import { useState } from "react";
 import PhoneLink from "@/components/PhoneLink";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
+import { hoursBetween } from "@/lib/time";
 
 export interface CustomerOption {
   name: string;
@@ -29,6 +30,12 @@ export default function CalendarAddJobModal({
 
   const [scheduledDate, setScheduledDate] = useState(date);
   const [scheduledTime, setScheduledTime] = useState("");
+  const [scheduledEndTime, setScheduledEndTime] = useState("");
+
+  const invalidTimeRange =
+    scheduledTime !== "" &&
+    scheduledEndTime !== "" &&
+    hoursBetween(scheduledTime, scheduledEndTime) === null;
   const [customerName, setCustomerName] = useState("");
   const [phone, setPhone] = useState("");
   const [phoneTouched, setPhoneTouched] = useState(false);
@@ -55,6 +62,10 @@ export default function CalendarAddJobModal({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    if (invalidTimeRange) {
+      setError("End time must be after start time.");
+      return;
+    }
     setLoading(true);
 
     try {
@@ -64,6 +75,7 @@ export default function CalendarAddJobModal({
         body: JSON.stringify({
           scheduledDate,
           scheduledTime: scheduledTime || undefined,
+          scheduledEndTime: scheduledEndTime || undefined,
           customerName: customerName.trim(),
           phone: phone.trim() || undefined,
           jobAddress: jobAddress.trim() || undefined,
@@ -123,32 +135,51 @@ export default function CalendarAddJobModal({
         {error && <div className="alert-error mb-4">{error}</div>}
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Scheduled date + time */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="dr-label">Scheduled Date *</label>
-              <input
-                className="dr-input"
-                type="date"
-                value={scheduledDate}
-                onChange={(e) => setScheduledDate(e.target.value)}
-                required
-              />
+          {/* Scheduled date + start/end time */}
+          <div>
+            <label className="dr-label">Scheduled Date *</label>
+            <input
+              className="dr-input"
+              type="date"
+              value={scheduledDate}
+              onChange={(e) => setScheduledDate(e.target.value)}
+              required
+            />
+            <div className="grid grid-cols-2 gap-4 mt-3">
+              <div>
+                <label className="dr-label">
+                  Start Time{" "}
+                  <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>
+                    (optional)
+                  </span>
+                </label>
+                <input
+                  className="dr-input"
+                  type="time"
+                  value={scheduledTime}
+                  onChange={(e) => setScheduledTime(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="dr-label">
+                  End Time{" "}
+                  <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>
+                    (optional)
+                  </span>
+                </label>
+                <input
+                  className="dr-input"
+                  type="time"
+                  value={scheduledEndTime}
+                  onChange={(e) => setScheduledEndTime(e.target.value)}
+                />
+              </div>
             </div>
-            <div>
-              <label className="dr-label">
-                Time{" "}
-                <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>
-                  (optional)
-                </span>
-              </label>
-              <input
-                className="dr-input"
-                type="time"
-                value={scheduledTime}
-                onChange={(e) => setScheduledTime(e.target.value)}
-              />
-            </div>
+            {invalidTimeRange && (
+              <p className="text-xs mt-1" style={{ color: "var(--danger, #ef4444)" }}>
+                End time must be after the start time.
+              </p>
+            )}
           </div>
 
           {/* Customer name with autocomplete */}
@@ -268,7 +299,7 @@ export default function CalendarAddJobModal({
             <button
               type="submit"
               className="dr-btn-primary flex-1"
-              disabled={loading}
+              disabled={loading || invalidTimeRange}
               style={{ justifyContent: "center" }}
             >
               {loading ? "Saving…" : "Save Job"}

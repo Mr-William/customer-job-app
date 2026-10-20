@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { hoursBetween } from "@/lib/time";
 
 interface Job {
   id: number;
@@ -14,6 +15,7 @@ interface Job {
   additionalDetails: string | null;
   scheduledDate?: string | null;
   scheduledTime?: string | null;
+  scheduledEndTime?: string | null;
 }
 
 interface EditJobModalProps {
@@ -58,11 +60,25 @@ export default function EditJobModal({
     job.additionalDetails || "Materials used:\n\nAdditional notes:"
   );
   const [scheduledDate, setScheduledDate] = useState(job.scheduledDate || "");
-  const [scheduledTime, setScheduledTime] = useState(job.scheduledTime || "");
+  const [scheduledStartTime, setScheduledStartTime] = useState(
+    job.scheduledTime || ""
+  );
+  const [scheduledEndTime, setScheduledEndTime] = useState(
+    job.scheduledEndTime || ""
+  );
+
+  const invalidTimeRange =
+    scheduledStartTime !== "" &&
+    scheduledEndTime !== "" &&
+    hoursBetween(scheduledStartTime, scheduledEndTime) === null;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    if (invalidTimeRange) {
+      setError("End time must be after start time.");
+      return;
+    }
     setLoading(true);
     try {
       const res = await fetch(`/api/jobs/${job.id}`, {
@@ -79,7 +95,8 @@ export default function EditJobModal({
           billPaid: status === "completed" && billStatus === "paid",
           additionalDetails,
           scheduledDate: scheduledDate || null,
-          scheduledTime: scheduledTime || null,
+          scheduledTime: scheduledStartTime || null,
+          scheduledEndTime: scheduledEndTime || null,
         }),
       });
       const data = await res.json();
@@ -185,27 +202,56 @@ export default function EditJobModal({
           )}
 
           <div>
-            <label className="dr-label">
+            <label className="dr-label" htmlFor="edit-job-scheduled-date">
               Scheduled Date{" "}
               <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>
                 (optional — shows on the calendar; clear to unschedule)
               </span>
             </label>
-            <div className="grid grid-cols-2 gap-4">
-              <input
-                className="dr-input"
-                type="date"
-                value={scheduledDate}
-                onChange={(e) => setScheduledDate(e.target.value)}
-              />
-              <input
-                className="dr-input"
-                type="time"
-                aria-label="Scheduled time (optional)"
-                value={scheduledTime}
-                onChange={(e) => setScheduledTime(e.target.value)}
-              />
+            <input
+              id="edit-job-scheduled-date"
+              className="dr-input"
+              type="date"
+              value={scheduledDate}
+              onChange={(e) => setScheduledDate(e.target.value)}
+            />
+            <div className="grid grid-cols-2 gap-4 mt-3">
+              <div>
+                <label className="dr-label" htmlFor="edit-job-start-time">
+                  Start Time{" "}
+                  <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>
+                    (optional)
+                  </span>
+                </label>
+                <input
+                  id="edit-job-start-time"
+                  className="dr-input"
+                  type="time"
+                  value={scheduledStartTime}
+                  onChange={(e) => setScheduledStartTime(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="dr-label" htmlFor="edit-job-end-time">
+                  End Time{" "}
+                  <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>
+                    (optional)
+                  </span>
+                </label>
+                <input
+                  id="edit-job-end-time"
+                  className="dr-input"
+                  type="time"
+                  value={scheduledEndTime}
+                  onChange={(e) => setScheduledEndTime(e.target.value)}
+                />
+              </div>
             </div>
+            {invalidTimeRange && (
+              <p className="text-xs mt-1" style={{ color: "var(--danger, #ef4444)" }}>
+                End time must be after the start time.
+              </p>
+            )}
           </div>
 
           <div>

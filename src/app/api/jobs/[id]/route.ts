@@ -30,6 +30,7 @@ export async function PUT(
     additionalDetails,
     scheduledDate,
     scheduledTime,
+    scheduledEndTime,
   } = body;
 
   const [updated] = await db
@@ -51,6 +52,9 @@ export async function PUT(
       ...(body && Object.prototype.hasOwnProperty.call(body, "scheduledTime")
         ? { scheduledTime: scheduledTime || null }
         : {}),
+      ...(body && Object.prototype.hasOwnProperty.call(body, "scheduledEndTime")
+        ? { scheduledEndTime: scheduledEndTime || null }
+        : {}),
       updatedAt: new Date(),
     })
     .where(eq(jobs.id, jobId))
@@ -64,7 +68,8 @@ export async function PUT(
 //   { action: "reopen" }              → undo completion
 //   { scheduledDate: "YYYY-MM-DD" }   → schedule / reschedule (drag & drop)
 //   { scheduledDate: null }           → move back to unscheduled
-//   { scheduledTime: "HH:MM" | null } → set / clear time of day
+//   { scheduledTime: "HH:MM" | null } → set / clear start time
+//   { scheduledEndTime: "HH:MM" | null } → set / clear end time
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -109,6 +114,21 @@ export async function PATCH(
       return NextResponse.json({ error: "Invalid scheduled time." }, { status: 400 });
     }
     patch.scheduledTime = v || null;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(body, "scheduledEndTime")) {
+    const v = body.scheduledEndTime;
+    if (v !== null && v !== "" && !TIME_RE.test(v)) {
+      return NextResponse.json({ error: "Invalid scheduled end time." }, { status: 400 });
+    }
+    patch.scheduledEndTime = v || null;
+  }
+
+  if (patch.scheduledTime && patch.scheduledEndTime && patch.scheduledEndTime <= patch.scheduledTime) {
+    return NextResponse.json(
+      { error: "End time must be after start time." },
+      { status: 400 }
+    );
   }
 
   if (Object.keys(patch).length === 0) {

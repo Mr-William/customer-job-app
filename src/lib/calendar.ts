@@ -1,5 +1,8 @@
 import { getDisplayName } from "@/lib/customerName";
 
+// Clock-time helpers live in lib/time.ts; re-exported here for existing imports.
+export { fmtTime, fmtTimeRange, hoursBetween } from "@/lib/time";
+
 export interface CalendarCustomer {
   id: number;
   name: string | null;
@@ -24,6 +27,7 @@ export interface CalendarJob {
   additionalDetails: string | null;
   scheduledDate: string | null;
   scheduledTime: string | null;
+  scheduledEndTime: string | null;
   createdAt: string;
   customer: CalendarCustomer;
 }
@@ -65,17 +69,6 @@ export function monthLabel(year: number, month: number): string {
     month: "long",
     year: "numeric",
   });
-}
-
-// "14:30" → "2:30 PM". Returns "" when no time set.
-export function fmtTime(t: string | null | undefined): string {
-  if (!t) return "";
-  const [hStr, mStr] = t.split(":");
-  const h = parseInt(hStr, 10);
-  if (isNaN(h)) return t;
-  const suffix = h >= 12 ? "PM" : "AM";
-  const h12 = h % 12 === 0 ? 12 : h % 12;
-  return `${h12}:${mStr || "00"} ${suffix}`;
 }
 
 // Sort jobs within a single day: timed first (chronologically), then untimed;

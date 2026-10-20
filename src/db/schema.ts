@@ -66,6 +66,7 @@ export const jobs = pgTable("jobs", {
   // Scheduling (calendar feature). Null = unscheduled / legacy job.
   scheduledDate: date("scheduled_date"),
   scheduledTime: time("scheduled_time"),
+  scheduledEndTime: time("scheduled_end_time"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

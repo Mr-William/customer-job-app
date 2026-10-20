@@ -11,6 +11,7 @@ import {
   CalendarJob,
   DATE_RE,
   fmtTime,
+  fmtTimeRange,
   formatLong,
   formatShort,
   monthLabel,
@@ -97,7 +98,7 @@ function JobRow({
   onToggleComplete: (job: CalendarJob, complete: boolean) => void;
 }) {
   const status = getStatus(job);
-  const time = fmtTime(job.scheduledTime);
+  const time = fmtTimeRange(job.scheduledTime, job.scheduledEndTime);
   return (
     <div className="flex gap-2 items-stretch">
       <button
@@ -1333,7 +1334,7 @@ function CalendarInner() {
                                   className="text-xs font-bold"
                                   style={{ color: "var(--accent-orange)" }}
                                 >
-                                  {fmtTime(job.scheduledTime)}
+                                  {fmtTimeRange(job.scheduledTime, job.scheduledEndTime)}
                                 </div>
                               )}
                               <div
@@ -1589,7 +1590,11 @@ function CalendarInner() {
                   {detailJob.scheduledDate ? (
                     <>
                       📅 {formatLong(detailJob.scheduledDate)}
-                      {detailJob.scheduledTime && <> · 🕐 {fmtTime(detailJob.scheduledTime)}</>}
+                      {detailJob.scheduledTime && (
+                        <>
+                          {" "}· 🕐 {fmtTimeRange(detailJob.scheduledTime, detailJob.scheduledEndTime)}
+                        </>
+                      )}
                     </>
                   ) : (
                     "📥 Unscheduled"

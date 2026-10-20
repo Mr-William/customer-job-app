@@ -3,6 +3,7 @@ import { useState, useCallback } from "react";
 import EditJobModal from "@/components/EditJobModal";
 import AddJobModal from "@/components/AddJobModal";
 import PhoneLink from "@/components/PhoneLink";
+import ScheduledLine from "@/components/ScheduledLine";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
 import { getDisplayName } from "@/lib/customerName";
 
@@ -19,6 +20,9 @@ interface Job {
   billPaid: boolean;
   additionalDetails: string | null;
   createdAt: string;
+  scheduledDate?: string | null;
+  scheduledTime?: string | null;
+  scheduledEndTime?: string | null;
 }
 
 interface Customer {
@@ -364,6 +368,11 @@ export default function SearchPage() {
                                         <JobStatusBadge job={job} />
                                         <BillingBadge job={job} />
                                       </div>
+                                      <ScheduledLine
+                                        date={job.scheduledDate}
+                                        start={job.scheduledTime}
+                                        end={job.scheduledEndTime}
+                                      />
                                       <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
                                         <strong>Work:</strong> {job.workCompleted}
                                       </p>

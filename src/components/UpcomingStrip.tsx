@@ -5,6 +5,7 @@ import { getDisplayName } from "@/lib/customerName";
 import {
   CalendarJob,
   fmtTime,
+  fmtTimeRange,
   formatShort,
   parseKey,
   toKey,
@@ -156,7 +157,7 @@ export default function UpcomingStrip() {
                         >
                           {job.scheduledTime && (
                             <span style={{ color: "var(--accent-orange)" }}>
-                              {fmtTime(job.scheduledTime)}{" "}
+                              {fmtTimeRange(job.scheduledTime, job.scheduledEndTime)}{" "}
                             </span>
                           )}
                           {job.jobCompleted ? "✓ " : ""}

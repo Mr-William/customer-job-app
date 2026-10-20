@@ -75,6 +75,7 @@ export async function GET(
       jobAddress: customer.jobAddress,
       scheduledDate: job.scheduledDate,
       scheduledTime: job.scheduledTime,
+      scheduledEndTime: job.scheduledEndTime,
       jobCompleted: job.jobCompleted,
       jobPartiallyCompleted: job.jobPartiallyCompleted,
       additionalWorkRecommended: job.additionalWorkRecommended,
