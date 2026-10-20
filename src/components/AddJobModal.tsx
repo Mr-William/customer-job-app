@@ -39,11 +39,14 @@ export default function AddJobModal({
     scheduledEndTime !== "";
 
   // Keep Total Hours in sync with the start/end boxes unless edited by hand.
+  // A user can save without an end time and fill it in later, so we only
+  // overwrite Total Hours when we have a valid start+end range to compute from.
+  // When either time is missing, leave Total Hours alone (the user can type it
+  // manually now or fill the end time in later).
   function syncHours(start: string, end: string) {
     if (hoursEdited) return;
     const hours = hoursBetween(start, end);
     if (hours !== null) setTotalHours(String(hours));
-    else if (start === "" || end === "") setTotalHours("");
   }
 
   function handleStartChange(value: string) {
@@ -145,6 +148,60 @@ export default function AddJobModal({
             />
           </div>
 
+          {/* Scheduled Date + Start/End Time */}
+          <div>
+            <label className="dr-label" htmlFor="add-job-scheduled-date">
+              Scheduled Date{" "}
+              <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>
+                (optional — shows on the calendar)
+              </span>
+            </label>
+            <input
+              id="add-job-scheduled-date"
+              className="dr-input"
+              type="date"
+              value={scheduledDate}
+              onChange={(e) => setScheduledDate(e.target.value)}
+            />
+            <div className="grid grid-cols-2 gap-4 mt-3">
+              <div>
+                <label className="dr-label" htmlFor="add-job-start-time">
+                  Start Time{" "}
+                  <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>
+                    (optional)
+                  </span>
+                </label>
+                <input
+                  id="add-job-start-time"
+                  className="dr-input"
+                  type="time"
+                  value={scheduledStartTime}
+                  onChange={(e) => handleStartChange(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="dr-label" htmlFor="add-job-end-time">
+                  End Time{" "}
+                  <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>
+                    (optional)
+                  </span>
+                </label>
+                <input
+                  id="add-job-end-time"
+                  className="dr-input"
+                  type="time"
+                  value={scheduledEndTime}
+                  onChange={(e) => handleEndChange(e.target.value)}
+                />
+              </div>
+            </div>
+            {invalidTimeRange && (
+              <p className="text-xs mt-1" style={{ color: "var(--danger, #ef4444)" }}>
+                End time must be after the start time.
+              </p>
+            )}
+          </div>
+
           {/* Total Hours */}
           <div>
             <label className="dr-label">Total Hours Worked *</label>
@@ -161,11 +218,15 @@ export default function AddJobModal({
               }}
               required
             />
-            {computedHours !== null && (
+            {computedHours !== null ? (
               <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
                 Calculated from the start and end times — you can overwrite it.
               </p>
-            )}
+            ) : scheduledStartTime !== "" && scheduledEndTime === "" ? (
+              <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
+                No end time yet — enter Total Hours now or fill the End Time later by editing the job.
+              </p>
+            ) : null}
           </div>
 
           {/* Work Completed */}
@@ -266,60 +327,6 @@ export default function AddJobModal({
               </div>
             </div>
           )}
-
-          {/* Scheduled Date + Start/End Time */}
-          <div>
-            <label className="dr-label" htmlFor="add-job-scheduled-date">
-              Scheduled Date{" "}
-              <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>
-                (optional — shows on the calendar)
-              </span>
-            </label>
-            <input
-              id="add-job-scheduled-date"
-              className="dr-input"
-              type="date"
-              value={scheduledDate}
-              onChange={(e) => setScheduledDate(e.target.value)}
-            />
-            <div className="grid grid-cols-2 gap-4 mt-3">
-              <div>
-                <label className="dr-label" htmlFor="add-job-start-time">
-                  Start Time{" "}
-                  <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>
-                    (optional)
-                  </span>
-                </label>
-                <input
-                  id="add-job-start-time"
-                  className="dr-input"
-                  type="time"
-                  value={scheduledStartTime}
-                  onChange={(e) => handleStartChange(e.target.value)}
-                />
-              </div>
-              <div>
-                <label className="dr-label" htmlFor="add-job-end-time">
-                  End Time{" "}
-                  <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>
-                    (optional)
-                  </span>
-                </label>
-                <input
-                  id="add-job-end-time"
-                  className="dr-input"
-                  type="time"
-                  value={scheduledEndTime}
-                  onChange={(e) => handleEndChange(e.target.value)}
-                />
-              </div>
-            </div>
-            {invalidTimeRange && (
-              <p className="text-xs mt-1" style={{ color: "var(--danger, #ef4444)" }}>
-                End time must be after the start time.
-              </p>
-            )}
-          </div>
 
           {/* Additional Details */}
           <div>

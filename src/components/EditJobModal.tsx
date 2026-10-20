@@ -66,11 +66,44 @@ export default function EditJobModal({
   const [scheduledEndTime, setScheduledEndTime] = useState(
     job.scheduledEndTime || ""
   );
+  // Track whether Total Hours is a hand-entered value we should leave alone.
+  // Jobs saved without an end time are expected to get one filled in later, so
+  // we allow the hours to be derived at that point. For jobs that already have
+  // a full time range, only treat the hours as derived when they actually match
+  // that range — otherwise keep whatever the user typed.
+  const getInitialHoursEdited = () => {
+    const storedStart = job.scheduledTime || "";
+    const storedEnd = job.scheduledEndTime || "";
+    if (!storedEnd) return false;
+    const storedHours = hoursBetween(storedStart, storedEnd);
+    if (storedHours === null) return true;
+    return Math.abs(storedHours - job.totalHoursWorked) > 0.001;
+  };
+  const [hoursEdited, setHoursEdited] = useState(getInitialHoursEdited);
 
   const invalidTimeRange =
     scheduledStartTime !== "" &&
     scheduledEndTime !== "" &&
     hoursBetween(scheduledStartTime, scheduledEndTime) === null;
+
+  // When an end time is filled in (or changed), sync Total Hours unless the
+  // user already typed a value by hand. A blank end time never clears the
+  // hours — they can be finished after the work is done.
+  function syncHours(start: string, end: string) {
+    if (hoursEdited) return;
+    const hours = hoursBetween(start, end);
+    if (hours !== null) setTotalHours(String(hours));
+  }
+
+  function handleStartChange(value: string) {
+    setScheduledStartTime(value);
+    syncHours(value, scheduledEndTime);
+  }
+
+  function handleEndChange(value: string) {
+    setScheduledEndTime(value);
+    syncHours(scheduledStartTime, value);
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -147,7 +180,16 @@ export default function EditJobModal({
           <div>
             <label className="dr-label">Total Hours Worked *</label>
             <input className="dr-input" type="number" step="0.25" min="0" value={totalHours}
-              onChange={(e) => setTotalHours(e.target.value)} required />
+              onChange={(e) => {
+                setTotalHours(e.target.value);
+                setHoursEdited(true);
+              }} required />
+            {hoursBetween(scheduledStartTime, scheduledEndTime) !== null &&
+              !hoursEdited && (
+                <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
+                  Calculated from the start and end times — you can overwrite it.
+                </p>
+              )}
           </div>
           <div>
             <label className="dr-label">Work Completed *</label>
@@ -228,7 +270,7 @@ export default function EditJobModal({
                   className="dr-input"
                   type="time"
                   value={scheduledStartTime}
-                  onChange={(e) => setScheduledStartTime(e.target.value)}
+                  onChange={(e) => handleStartChange(e.target.value)}
                 />
               </div>
               <div>
@@ -243,13 +285,18 @@ export default function EditJobModal({
                   className="dr-input"
                   type="time"
                   value={scheduledEndTime}
-                  onChange={(e) => setScheduledEndTime(e.target.value)}
+                  onChange={(e) => handleEndChange(e.target.value)}
                 />
               </div>
             </div>
             {invalidTimeRange && (
               <p className="text-xs mt-1" style={{ color: "var(--danger, #ef4444)" }}>
                 End time must be after the start time.
+              </p>
+            )}
+            {!invalidTimeRange && scheduledEndTime === "" && (
+              <p className="text-xs mt-2" style={{ color: "var(--text-muted)" }}>
+                End time can be left blank and filled in once the work is finished.
               </p>
             )}
           </div>
