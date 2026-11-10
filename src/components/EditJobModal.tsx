@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { hoursBetween } from "@/lib/time";
 
 interface Job {
@@ -32,6 +32,33 @@ export default function EditJobModal({
   onSuccess,
 }: EditJobModalProps) {
   const [loading, setLoading] = useState(false);
+  const [photos, setPhotos] = useState<{id:string;url:string;comment:string;createdAt:string}[]>([]);
+  const [photoError, setPhotoError] = useState("");
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [selectedPhoto, setSelectedPhoto] = useState<number | null>(null);
+  const [pendingPhoto, setPendingPhoto] = useState<File | null>(null);
+  const [photoChooserOpen, setPhotoChooserOpen] = useState(false);
+  const [photoComment, setPhotoComment] = useState("");
+  const [photoSaving, setPhotoSaving] = useState(false);
+  const libraryInput = useRef<HTMLInputElement>(null);
+  const cameraInput = useRef<HTMLInputElement>(null);
+
+  async function loadPhotos() {
+    const response = await fetch(`/api/jobs/${job.id}/photos`);
+    if (response.ok) setPhotos((await response.json()).photos);
+  }
+  async function savePhoto() {
+    if (!pendingPhoto) return;
+    setPhotoSaving(true); setPhotoError("");
+    try {
+      const form = new FormData(); form.append("photo", pendingPhoto); form.append("comment", photoComment);
+      const response = await fetch(`/api/jobs/${job.id}/photos`, { method: "POST", body: form });
+      const data = await response.json();
+      if (!response.ok) { setPhotoError(data.error || "Could not save photo."); return; }
+      setPendingPhoto(null); setPhotoComment(""); await loadPhotos();
+    } catch { setPhotoError("Network error while saving photo."); }
+    finally { setPhotoSaving(false); }
+  }
   const [error, setError] = useState("");
 
   const getInitialStatus = () => {
@@ -307,6 +334,28 @@ export default function EditJobModal({
               onChange={(e) => setAdditionalDetails(e.target.value)}
               style={{ resize: "vertical" }} />
           </div>
+
+          <div className="flex flex-wrap gap-3">
+            <button type="button" className="dr-btn-secondary" onClick={() => { setPhotoError(""); setPhotoChooserOpen(true); }}>＋ Add Photo</button>
+            <button type="button" className="dr-btn-secondary" onClick={() => { setPhotoError(""); setViewerOpen(true); setSelectedPhoto(null); void loadPhotos(); }}>View Photos</button>
+            <input ref={libraryInput} type="file" accept="image/*" hidden onChange={e => setPendingPhoto(e.target.files?.[0] || null)} />
+            <input ref={cameraInput} type="file" accept="image/*" capture="environment" hidden onChange={e => setPendingPhoto(e.target.files?.[0] || null)} />
+          </div>
+          {photoChooserOpen && <div className="flex gap-2"><button type="button" className="dr-btn-secondary" onClick={() => {setPhotoChooserOpen(false);cameraInput.current?.click()}}>Take a new photo</button><button type="button" className="dr-btn-secondary" onClick={() => {setPhotoChooserOpen(false);libraryInput.current?.click()}}>Choose from device</button><button type="button" className="dr-btn-secondary" onClick={() => setPhotoChooserOpen(false)}>Cancel</button></div>}
+          {pendingPhoto && <div style={{padding:16,border:"1px solid var(--border-color)",borderRadius:8}}>
+            <p className="text-sm mb-2">Add {pendingPhoto.name}</p>
+            <div className="flex gap-2 mb-3"><button type="button" className="dr-btn-secondary" onClick={() => cameraInput.current?.click()}>Take a new photo</button><button type="button" className="dr-btn-secondary" onClick={() => libraryInput.current?.click()}>Choose from device</button></div>
+            <textarea className="dr-input" rows={2} maxLength={500} placeholder="Optional comment" value={photoComment} onChange={e=>setPhotoComment(e.target.value)} />
+            {photoError && <p className="text-sm mt-2" style={{color:"var(--danger, #ef4444)"}}>{photoError}</p>}
+            <div className="flex gap-2 mt-3"><button type="button" className="dr-btn-primary" disabled={photoSaving} onClick={()=>void savePhoto()}>{photoSaving?"Saving…":"Save Photo"}</button><button type="button" className="dr-btn-secondary" onClick={()=>{setPendingPhoto(null);setPhotoError("")}}>Cancel</button></div>
+          </div>}
+          {photoError && !pendingPhoto && <p className="text-sm" style={{color:"var(--danger, #ef4444)"}}>{photoError}</p>}
+          {viewerOpen && <div className="modal-overlay" style={{zIndex:120}} onClick={e=>{if(e.target===e.currentTarget){setViewerOpen(false);setSelectedPhoto(null)}}}>
+            <div className="modal-content" style={{maxWidth:900,maxHeight:"90vh",overflowY:"auto"}}>
+              <div className="flex items-center justify-between mb-4"><h3 className="text-lg font-bold">Job Photos</h3><button aria-label="Close photos" onClick={()=>{setViewerOpen(false);setSelectedPhoto(null)}} style={{background:"none",border:0,fontSize:28,color:"var(--text-muted)",cursor:"pointer"}}>×</button></div>
+              {selectedPhoto !== null && photos[selectedPhoto] ? <div style={{position:"relative",textAlign:"center"}}><button aria-label="Back to all photos" onClick={()=>setSelectedPhoto(null)} style={{position:"absolute",right:0,top:0,zIndex:1,background:"rgba(0,0,0,.65)",color:"white",border:0,borderRadius:"50%",width:40,height:40,fontSize:26,cursor:"pointer"}}>×</button><img src={photos[selectedPhoto].url} alt={photos[selectedPhoto].comment||"Job photo"} style={{maxWidth:"100%",maxHeight:"70vh",objectFit:"contain"}}/>{photos[selectedPhoto].comment&&<p className="mt-3">{photos[selectedPhoto].comment}</p>}</div> : photos.length ? <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">{photos.map((photo,index)=><button type="button" key={photo.id} onClick={()=>setSelectedPhoto(index)} style={{padding:0,border:"1px solid var(--border-color)",borderRadius:8,overflow:"hidden",background:"transparent",cursor:"pointer",textAlign:"left"}}><img src={photo.url} alt={photo.comment||"Job photo"} style={{width:"100%",height:150,objectFit:"cover"}}/>{photo.comment&&<span className="block text-xs p-2">{photo.comment}</span>}</button>)}</div> : <p style={{color:"var(--text-muted)"}}>No photos have been added to this job yet.</p>}
+            </div>
+          </div>}
 
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose} className="dr-btn-secondary flex-1" style={{ justifyContent: "center" }}>
