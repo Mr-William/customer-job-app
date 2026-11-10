@@ -4,6 +4,7 @@ import {
   jobPhotoExtension,
   jobPhotoValidationError,
   MAX_JOB_PHOTO_BYTES,
+  OPTIMISED_JOB_PHOTO_TARGET_BYTES,
   optimisedPhotoDimensions,
   optimiseJobPhoto,
   updateJobPhoto,
@@ -12,8 +13,18 @@ import {
 } from "../src/lib/jobPhotos.ts";
 
 const originalFetch = globalThis.fetch;
+const originalDocument = globalThis.document;
+const originalImage = globalThis.Image;
+const originalCreateObjectURL = URL.createObjectURL;
+const originalRevokeObjectURL = URL.revokeObjectURL;
 afterEach(() => {
   globalThis.fetch = originalFetch;
+  if (originalDocument === undefined) delete globalThis.document;
+  else globalThis.document = originalDocument;
+  if (originalImage === undefined) delete globalThis.Image;
+  else globalThis.Image = originalImage;
+  URL.createObjectURL = originalCreateObjectURL;
+  URL.revokeObjectURL = originalRevokeObjectURL;
 });
 
 function jpeg(size = 128) {
@@ -47,6 +58,41 @@ test("scales large camera images down proportionally without upscaling small ima
 test("leaves originals unchanged when browser optimisation is unavailable", async () => {
   const original = jpeg();
   assert.equal(await optimiseJobPhoto(original), original);
+});
+
+test("targets less than Nginx's default request limit", () => {
+  assert.ok(OPTIMISED_JOB_PHOTO_TARGET_BYTES < 1024 * 1024);
+});
+
+test("adaptively lowers compression quality until the photo fits the proxy-safe target", async () => {
+  const qualities = [];
+  const canvas = {
+    width: 0,
+    height: 0,
+    getContext: () => ({ drawImage() {}, fillRect() {}, fillStyle: "" }),
+    toBlob(callback, type, quality) {
+      qualities.push(quality);
+      const size = quality >= 0.72 ? 2 * 1024 * 1024 : 800 * 1024;
+      callback(new Blob([new Uint8Array(size)], { type }));
+    },
+  };
+  globalThis.document = { createElement: () => canvas };
+  globalThis.Image = class {
+    set src(_value) {
+      this.naturalWidth = 6000;
+      this.naturalHeight = 4000;
+      queueMicrotask(() => this.onload());
+    }
+  };
+  URL.createObjectURL = () => "blob:test-photo";
+  URL.revokeObjectURL = () => {};
+
+  const result = await optimiseJobPhoto(jpeg(3 * 1024 * 1024));
+  assert.equal(result.size, 800 * 1024);
+  assert.equal(result.type, "image/jpeg");
+  assert.deepEqual(qualities, [0.82, 0.72, 0.62]);
+  assert.equal(canvas.width, 2560);
+  assert.equal(canvas.height, 1707);
 });
 
 test("posts the photo and comment as multipart form data", async () => {
@@ -101,8 +147,9 @@ test("explains an Nginx 413 HTML response instead of reporting a network error",
     headers: { "Content-Type": "text/html" },
   });
 
-  await assert.rejects(uploadJobPhoto(7, jpeg(), ""), (error) => {
-    assert.match(error.message, /rejected as too large/);
+  await assert.rejects(uploadJobPhoto(7, jpeg(2 * 1024 * 1024), ""), (error) => {
+    assert.match(error.message, /optimised 2\.0 MB upload was rejected by the web server/);
+    assert.match(error.message, /client_max_body_size 20m/);
     assert.doesNotMatch(error.message, /Network error/);
     return true;
   });
