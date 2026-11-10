@@ -276,6 +276,9 @@ server {
     listen 80;
     server_name jobs.yourdomain.com;
 
+    # The app accepts photos up to 15 MB; allow multipart overhead too.
+    client_max_body_size 20m;
+
     location / {
         proxy_pass http://localhost:3000;
         proxy_http_version 1.1;
@@ -457,7 +460,8 @@ server {
     ssl_protocols TLSv1.2 TLSv1.3;
 
     server_tokens off;
-    client_max_body_size 10m;
+    # The app accepts photos up to 15 MB; allow multipart overhead too.
+    client_max_body_size 20m;
 
     # Security headers
     add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
@@ -660,7 +664,30 @@ pm2 restart jobtracker  # Restart with new code
 | SSL certificate error | Run `sudo certbot renew --force-renewal` |
 | Permission denied on clone | Use HTTPS URL or set up SSH keys for GitHub |
 | Drizzle migration fails | Ensure the PostgreSQL user has GRANT ALL on the database and schema |
+| Photo is too large or saving a photo fails with a 413 error | Set `client_max_body_size 20m;` in the Nginx server block, then run `sudo nginx -t && sudo systemctl reload nginx`. The app itself accepts images up to 15 MB. See “Photo uploads” below. |
+| Server could not store a photo | Check `pm2 logs jobtracker --lines 50 --nostream`. Ensure the `deploy` user can write to `JOB_PHOTO_DIR`, or to `data/job-photos` under the app directory when that variable is not set. |
 | No address suggestions while typing | The app server likely cannot reach the geocoder. Check with `curl -sS -m 5 -o /dev/null -w '%{http_code}\n' 'https://photon.komoot.io/api/?q=test'` (expect `200`) and `pm2 logs jobtracker --lines 50 --nostream \| grep address-suggestions` for the exact cause. Suggestions still work in the browser when the server is blocked, and a fallback (US Census geocoder) covers complete addresses. See "Address suggestions" below. |
+
+### Photo uploads
+
+The app accepts JPEG, PNG, WebP, HEIC, HEIF, and GIF photos up to **15 MB**. Nginx
+must allow a slightly larger request because multipart form encoding adds overhead.
+Set this inside the HTTPS `server` block in `/etc/nginx/sites-available/jobtracker`
+(and in the HTTP server block too if you use the initial HTTP-only configuration):
+
+```nginx
+client_max_body_size 20m;
+```
+
+Then validate and reload Nginx:
+
+```bash
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+Without this setting, Nginx's default 1 MB limit can reject ordinary phone photos
+before they reach the app. A 20 MB proxy limit does not change the app's 15 MB
+per-photo validation.
 
 ### Address suggestions (autocomplete)
 

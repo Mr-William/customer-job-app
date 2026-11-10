@@ -1,6 +1,7 @@
 "use client";
 import { useRef, useState } from "react";
 import { hoursBetween } from "@/lib/time";
+import { JobPhoto, uploadJobPhoto } from "@/lib/jobPhotos";
 
 interface Job {
   id: number;
@@ -32,7 +33,7 @@ export default function EditJobModal({
   onSuccess,
 }: EditJobModalProps) {
   const [loading, setLoading] = useState(false);
-  const [photos, setPhotos] = useState<{id:string;url:string;comment:string;createdAt:string}[]>([]);
+  const [photos, setPhotos] = useState<JobPhoto[]>([]);
   const [photoError, setPhotoError] = useState("");
   const [viewerOpen, setViewerOpen] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState<number | null>(null);
@@ -51,13 +52,12 @@ export default function EditJobModal({
     if (!pendingPhoto) return;
     setPhotoSaving(true); setPhotoError("");
     try {
-      const form = new FormData(); form.append("photo", pendingPhoto); form.append("comment", photoComment);
-      const response = await fetch(`/api/jobs/${job.id}/photos`, { method: "POST", body: form });
-      const data = await response.json();
-      if (!response.ok) { setPhotoError(data.error || "Could not save photo."); return; }
-      setPendingPhoto(null); setPhotoComment(""); await loadPhotos();
-    } catch { setPhotoError("Network error while saving photo."); }
-    finally { setPhotoSaving(false); }
+      const photo = await uploadJobPhoto(job.id, pendingPhoto, photoComment);
+      setPhotos(current => [photo, ...current]);
+      setPendingPhoto(null); setPhotoComment("");
+    } catch (error) {
+      setPhotoError(error instanceof Error ? error.message : "Could not save photo. Please try again.");
+    } finally { setPhotoSaving(false); }
   }
   const [error, setError] = useState("");
 

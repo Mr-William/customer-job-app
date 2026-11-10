@@ -1,12 +1,13 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import ScheduledLine from "@/components/ScheduledLine";
+import { JobPhoto, uploadJobPhoto } from "@/lib/jobPhotos";
 
 type Job = { id:number; employeeName:string; totalHoursWorked:number; workCompleted:string; jobCompleted:boolean; jobPartiallyCompleted:boolean; additionalWorkRecommended:boolean; billSent:boolean; billPaid:boolean; additionalDetails:string|null; scheduledDate?:string|null; scheduledTime?:string|null; scheduledEndTime?:string|null };
 export default function ViewJobModal({job,customerName,onClose}:{job:Job;customerName:string;onClose:()=>void}) {
- const [photos,setPhotos]=useState<{id:string;url:string;comment:string;createdAt:string}[]>([]); const [gallery,setGallery]=useState(false); const [active,setActive]=useState<number|null>(null);
+ const [photos,setPhotos]=useState<JobPhoto[]>([]); const [gallery,setGallery]=useState(false); const [active,setActive]=useState<number|null>(null);
  const [chooser,setChooser]=useState(false); const [file,setFile]=useState<File|null>(null); const [comment,setComment]=useState(""); const [uploadError,setUploadError]=useState(""); const [saving,setSaving]=useState(false); const picker=useRef<HTMLInputElement>(null); const camera=useRef<HTMLInputElement>(null);
- async function upload(){if(!file)return;setSaving(true);setUploadError("");try{const form=new FormData();form.append("photo",file);form.append("comment",comment);const r=await fetch(`/api/jobs/${job.id}/photos`,{method:"POST",body:form});const d=await r.json();if(!r.ok){setUploadError(d.error||"Could not save photo.");return}setFile(null);setComment("");const list=await fetch(`/api/jobs/${job.id}/photos`);if(list.ok)setPhotos((await list.json()).photos)}catch{setUploadError("Network error while saving photo.")}finally{setSaving(false)}}
+ async function upload(){if(!file)return;setSaving(true);setUploadError("");try{const photo=await uploadJobPhoto(job.id,file,comment);setPhotos(current=>[photo,...current]);setFile(null);setComment("")}catch(error){setUploadError(error instanceof Error?error.message:"Could not save photo. Please try again.")}finally{setSaving(false)}}
  useEffect(()=>{fetch(`/api/jobs/${job.id}/photos`).then(r=>r.ok?r.json():{photos:[]}).then(d=>setPhotos(d.photos||[])).catch(()=>{});},[job.id]);
  const status=job.jobCompleted?"Completed":job.jobPartiallyCompleted?"Partially completed":job.additionalWorkRecommended?"Additional work recommended":"Pending";
  return <div className="modal-overlay" onClick={e=>{if(e.target===e.currentTarget)onClose()}}><div className="modal-content slide-in" style={{maxWidth:700}}>
