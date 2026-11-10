@@ -2,6 +2,7 @@
 import { useEffect, useState, useCallback } from "react";
 import AddJobModal from "@/components/AddJobModal";
 import EditJobModal from "@/components/EditJobModal";
+import ViewJobModal from "@/components/ViewJobModal";
 import ImportCustomersModal from "@/components/ImportCustomersModal";
 import PhoneLink from "@/components/PhoneLink";
 import ScheduledLine from "@/components/ScheduledLine";
@@ -94,6 +95,7 @@ export default function CustomersPage() {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [addJobCustomer, setAddJobCustomer] = useState<Customer | null>(null);
   const [editJob, setEditJob] = useState<{ job: Job; customerName: string } | null>(null);
+  const [viewJob, setViewJob] = useState<{ job: Job; customerName: string } | null>(null);
   const [editCustomer, setEditCustomer] = useState<Customer | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
   const [showImport, setShowImport] = useState(false);
@@ -343,7 +345,11 @@ export default function CustomersPage() {
                         <div
                           key={job.id}
                           className="rounded-lg p-4"
-                          style={{ background: "var(--bg-tertiary)", border: "1px solid var(--border-color)" }}
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => setViewJob({ job, customerName: getDisplayName(customer) })}
+                          onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setViewJob({ job, customerName: getDisplayName(customer) }); } }}
+                          style={{ background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", cursor: "pointer" }}
                         >
                           <div className="flex items-start justify-between gap-3 flex-wrap">
                             <div className="flex-1 min-w-0">
@@ -375,14 +381,14 @@ export default function CustomersPage() {
                               <button
                                 className="dr-btn-secondary"
                                 style={{ padding: "5px 10px", fontSize: "12px" }}
-                                onClick={() => setEditJob({ job, customerName: getDisplayName(customer) })}
+                                onClick={(e) => { e.stopPropagation(); setEditJob({ job, customerName: getDisplayName(customer) }); }}
                               >
                                 ✏️ Edit
                               </button>
                               <button
                                 className="dr-btn-danger"
                                 style={{ padding: "5px 10px", fontSize: "12px" }}
-                                onClick={() => handleDeleteJob(job.id)}
+                                onClick={(e) => { e.stopPropagation(); void handleDeleteJob(job.id); }}
                               >
                                 🗑️
                               </button>
@@ -418,6 +424,8 @@ export default function CustomersPage() {
           onSuccess={loadCustomers}
         />
       )}
+
+      {viewJob && <ViewJobModal job={viewJob.job} customerName={viewJob.customerName} onClose={() => setViewJob(null)} />}
 
       {/* Edit Customer Modal */}
       {editCustomer && (
