@@ -4,6 +4,10 @@ import {
   jobPhotoExtension,
   jobPhotoValidationError,
   MAX_JOB_PHOTO_BYTES,
+  optimisedPhotoDimensions,
+  optimiseJobPhoto,
+  updateJobPhoto,
+  deleteJobPhoto,
   uploadJobPhoto,
 } from "../src/lib/jobPhotos.ts";
 
@@ -34,6 +38,17 @@ test("rejects oversized and unsupported photos", () => {
   assert.match(jobPhotoValidationError(new File(["text"], "notes.txt", { type: "text/plain" })), /Supported formats/);
 });
 
+test("scales large camera images down proportionally without upscaling small images", () => {
+  assert.deepEqual(optimisedPhotoDimensions(6000, 4000), { width: 2560, height: 1707 });
+  assert.deepEqual(optimisedPhotoDimensions(4000, 6000), { width: 1707, height: 2560 });
+  assert.deepEqual(optimisedPhotoDimensions(1200, 800), { width: 1200, height: 800 });
+});
+
+test("leaves originals unchanged when browser optimisation is unavailable", async () => {
+  const original = jpeg();
+  assert.equal(await optimiseJobPhoto(original), original);
+});
+
 test("posts the photo and comment as multipart form data", async () => {
   let request;
   globalThis.fetch = async (url, options) => {
@@ -49,6 +64,19 @@ test("posts the photo and comment as multipart form data", async () => {
   assert.equal(request.options.body.get("comment"), "Finished repair");
   assert.equal(request.options.body.get("photo").name, "job.jpg");
   assert.equal(request.options.headers, undefined);
+});
+
+test("posts a title and description with the photo", async () => {
+  let body;
+  globalThis.fetch = async (_url, options) => {
+    body = options.body;
+    return Response.json({ photo: savedPhoto }, { status: 201 });
+  };
+
+  await uploadJobPhoto(7, jpeg(), { title: "New boiler", description: "Installed in the basement" });
+  assert.equal(body.get("title"), "New boiler");
+  assert.equal(body.get("description"), "Installed in the basement");
+  assert.equal(body.get("comment"), "Installed in the basement");
 });
 
 test("rejects an oversized photo without making a network request", async () => {
@@ -90,4 +118,30 @@ test("uses the network error only when the request itself fails", async () => {
     throw new TypeError("Failed to fetch");
   };
   await assert.rejects(uploadJobPhoto(7, jpeg(), ""), /Network error while saving photo/);
+});
+
+test("updates photo title and description", async () => {
+  let request;
+  globalThis.fetch = async (url, options) => {
+    request = { url, options };
+    return Response.json({ photo: { ...savedPhoto, title: "Updated", description: "New details" } });
+  };
+
+  const result = await updateJobPhoto(7, "photo-1", { title: "Updated", description: "New details" });
+  assert.equal(request.url, "/api/jobs/7/photos/photo-1");
+  assert.equal(request.options.method, "PATCH");
+  assert.deepEqual(JSON.parse(request.options.body), { title: "Updated", description: "New details" });
+  assert.equal(result.title, "Updated");
+});
+
+test("deletes a photo without trying to parse the empty success response", async () => {
+  let request;
+  globalThis.fetch = async (url, options) => {
+    request = { url, options };
+    return new Response(null, { status: 204 });
+  };
+
+  await deleteJobPhoto(7, "photo-1");
+  assert.equal(request.url, "/api/jobs/7/photos/photo-1");
+  assert.equal(request.options.method, "DELETE");
 });
