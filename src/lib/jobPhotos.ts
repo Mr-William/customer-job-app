@@ -1,5 +1,7 @@
 export const MAX_JOB_PHOTO_BYTES = 15 * 1024 * 1024;
 export const MAX_JOB_PHOTO_DIMENSION = 2560;
+// Leaves room for multipart fields under Nginx's default 1 MB request limit.
+export const OPTIMISED_JOB_PHOTO_TARGET_BYTES = 900 * 1024;
 
 export interface JobPhoto {
   id: string;
@@ -64,44 +66,73 @@ function loadImage(file: File): Promise<HTMLImageElement> {
   });
 }
 
+function canvasBlob(canvas: HTMLCanvasElement, type: string, quality: number): Promise<Blob | null> {
+  return new Promise(resolve => canvas.toBlob(resolve, type, quality));
+}
+
+function optimisedFile(file: File, blob: Blob): File {
+  const type = blob.type || "image/jpeg";
+  const extension = jobPhotoExtension(type) || ".jpg";
+  const name = file.name.replace(/\.[^.]+$/, "") + extension;
+  return new File([blob], name, { type, lastModified: Date.now() });
+}
+
 /**
- * Resize and compress camera images before they use bandwidth or server storage.
- * If browser decoding is unavailable (some HEIC browsers) or compression would
- * enlarge the file, the original is retained and normal validation still applies.
+ * Resize and adaptively compress camera images to fit even Nginx's default
+ * request limit. If browser decoding is unavailable, the original is retained
+ * and normal validation still applies. Animated GIFs are never flattened.
  */
 export async function optimiseJobPhoto(file: File): Promise<File> {
-  // Keep animated GIFs intact. Node tests and non-browser callers have no canvas.
-  if (file.type === "image/gif" || typeof document === "undefined") return file;
+  if (file.type === "image/gif" || file.size <= OPTIMISED_JOB_PHOTO_TARGET_BYTES || typeof document === "undefined") return file;
 
   try {
     const image = await loadImage(file);
-    const { width, height } = optimisedPhotoDimensions(image.naturalWidth, image.naturalHeight);
+    let { width, height } = optimisedPhotoDimensions(image.naturalWidth, image.naturalHeight);
     const canvas = document.createElement("canvas");
-    canvas.width = width;
-    canvas.height = height;
     const context = canvas.getContext("2d");
     if (!context) return file;
-    context.drawImage(image, 0, 0, width, height);
 
-    const outputType = file.type === "image/png" || file.type === "image/webp" ? file.type : "image/jpeg";
-    const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, outputType, 0.85));
-    if (!blob || blob.size >= file.size) return file;
+    const outputType = file.type === "image/png" || file.type === "image/webp" ? "image/webp" : "image/jpeg";
+    let smallest: Blob | null = null;
 
-    const extension = jobPhotoExtension(outputType) || ".jpg";
-    const name = file.name.replace(/\.[^.]+$/, "") + extension;
-    return new File([blob], name, { type: outputType, lastModified: Date.now() });
+    // Lower quality first, then reduce dimensions. Eight attempts bound the
+    // work on mobile devices while bringing detailed photos below the target.
+    for (let attempt = 0; attempt < 8; attempt++) {
+      canvas.width = width;
+      canvas.height = height;
+      if (outputType === "image/jpeg") {
+        context.fillStyle = "#ffffff";
+        context.fillRect(0, 0, width, height);
+      }
+      context.drawImage(image, 0, 0, width, height);
+      const quality = [0.82, 0.72, 0.62, 0.58, 0.54, 0.5, 0.46, 0.42][attempt];
+      const blob = await canvasBlob(canvas, outputType, quality);
+      if (blob && (!smallest || blob.size < smallest.size)) smallest = blob;
+      if (blob && blob.size <= OPTIMISED_JOB_PHOTO_TARGET_BYTES) return optimisedFile(file, blob);
+      if (attempt >= 2) {
+        width = Math.max(1, Math.round(width * 0.75));
+        height = Math.max(1, Math.round(height * 0.75));
+      }
+    }
+
+    return smallest && smallest.size < file.size ? optimisedFile(file, smallest) : file;
   } catch {
     return file;
   }
 }
 
-async function responseError(response: Response, fallback: string): Promise<Error> {
+function megabytes(bytes: number): string {
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+async function responseError(response: Response, fallback: string, uploadBytes?: number): Promise<Error> {
   try {
     const data = await response.json();
     if (data?.error) return new Error(data.error);
   } catch {
     if (response.status === 413) {
-      return new Error("The upload was rejected as too large. Choose a smaller image, or ask the administrator to check the server's upload limit.");
+      const size = uploadBytes === undefined ? "The upload" : `The optimised ${megabytes(uploadBytes)} upload`;
+      return new Error(`${size} was rejected by the web server before it reached the app. The server's request-size limit still needs increasing (Nginx: client_max_body_size 20m).`);
     }
   }
   return new Error(`${fallback} (server returned ${response.status}). Please try again.`);
@@ -134,7 +165,7 @@ export async function uploadJobPhoto(
   } catch {
     throw new Error("Network error while saving photo. Check your connection and try again.");
   }
-  if (!response.ok) throw await responseError(response, "Could not save photo");
+  if (!response.ok) throw await responseError(response, "Could not save photo", file.size);
 
   try {
     const data = await response.json();
