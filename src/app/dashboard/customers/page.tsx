@@ -40,10 +40,22 @@ interface Customer {
 }
 
 function JobStatusBadge({ job }: { job: Job }) {
-  if (job.jobCompleted) return <span className="badge-success">✓ Completed</span>;
-  if (job.jobPartiallyCompleted) return <span className="badge-warning">⚡ Partial</span>;
-  if (job.additionalWorkRecommended) return <span className="badge-blue">+ Additional</span>;
-  return <span className="badge-danger">— Pending</span>;
+  const primaryStatus = job.jobCompleted
+    ? <span className="badge-success">✓ Completed</span>
+    : job.jobPartiallyCompleted
+      ? <span className="badge-warning">⚡ Partial</span>
+      : job.additionalWorkRecommended
+        ? <span className="badge-blue">+ Additional work</span>
+        : <span className="badge-danger">— Pending</span>;
+
+  return (
+    <>
+      {primaryStatus}
+      {(job.jobCompleted || job.jobPartiallyCompleted) && job.additionalWorkRecommended && (
+        <span className="badge-blue">+ Additional work</span>
+      )}
+    </>
+  );
 }
 
 function BillingBadge({ job }: { job: Job }) {

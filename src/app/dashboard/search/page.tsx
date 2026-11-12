@@ -327,6 +327,10 @@ export default function SearchPage() {
                               {customer.jobs.length} job{customer.jobs.length !== 1 ? "s" : ""}
                             </span>
                             <StatusPill status={getJobStatus(customer.jobs)} />
+                            {customer.jobs.some((job) => job.additionalWorkRecommended) &&
+                              getJobStatus(customer.jobs) !== "Additional" && (
+                                <span className="badge-blue">+ Additional work recommended</span>
+                              )}
                             <BillPill bill={getBillStatus(customer.jobs)} />
                           </div>
                           <div className="text-sm space-y-1" style={{ color: "var(--text-secondary)" }}>
@@ -422,10 +426,22 @@ export default function SearchPage() {
 }
 
 function JobStatusBadge({ job }: { job: Job }) {
-  if (job.jobCompleted) return <span className="badge-success">✓ Completed</span>;
-  if (job.jobPartiallyCompleted) return <span className="badge-warning">⚡ Partial</span>;
-  if (job.additionalWorkRecommended) return <span className="badge-blue">+ Additional</span>;
-  return null;
+  const primaryStatus = job.jobCompleted
+    ? <span className="badge-success">✓ Completed</span>
+    : job.jobPartiallyCompleted
+      ? <span className="badge-warning">⚡ Partial</span>
+      : job.additionalWorkRecommended
+        ? <span className="badge-blue">+ Additional work</span>
+        : null;
+
+  return (
+    <>
+      {primaryStatus}
+      {(job.jobCompleted || job.jobPartiallyCompleted) && job.additionalWorkRecommended && (
+        <span className="badge-blue">+ Additional work</span>
+      )}
+    </>
+  );
 }
 
 function BillingBadge({ job }: { job: Job }) {

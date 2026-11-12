@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
         totalHoursWorked: parseFloat(totalHoursWorked),
         workCompleted,
         jobCompleted: !!jobCompleted,
-        jobPartiallyCompleted: !!jobPartiallyCompleted,
+        jobPartiallyCompleted: !!jobPartiallyCompleted && !jobCompleted,
         additionalWorkRecommended: !!additionalWorkRecommended,
         billSent: !!billSent,
         billPaid: !!billPaid,

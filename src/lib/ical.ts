@@ -133,6 +133,9 @@ function eventLines(job: ICalendarJob): string[] | null {
     `Work: ${job.workCompleted}`,
     `Employee: ${job.employeeName}`,
     `Status: ${jobStatus(job)}`,
+    job.additionalWorkRecommended && (job.jobCompleted || job.jobPartiallyCompleted)
+      ? "Additional work recommended: Yes"
+      : "",
     job.additionalDetails ? `Notes: ${job.additionalDetails}` : "",
   ]
     .filter(Boolean)

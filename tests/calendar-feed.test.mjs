@@ -37,6 +37,16 @@ test("builds an RFC 5545 calendar with all-day and timed jobs", () => {
   assert.match(calendar, /LOCATION:12 Main St\\, St\. Louis\\, MO/);
 });
 
+test("keeps completed status and includes a separate additional-work recommendation", () => {
+  const calendar = buildCalendarIcs([
+    job({ jobCompleted: true, additionalWorkRecommended: true }),
+  ]);
+
+  const unfolded = calendar.replace(/\r\n[ \t]/g, "");
+  assert.match(unfolded, /Status: Completed/);
+  assert.match(unfolded, /Additional work recommended: Yes/);
+});
+
 test("uses the entered end time for the event duration", () => {
   const calendar = buildCalendarIcs([
     job({ id: 31, scheduledTime: "09:00:00", scheduledEndTime: "11:30:00" }),

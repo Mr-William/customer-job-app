@@ -40,7 +40,7 @@ export async function PUT(
       totalHoursWorked: parseFloat(totalHoursWorked),
       workCompleted,
       jobCompleted: !!jobCompleted,
-      jobPartiallyCompleted: !!jobPartiallyCompleted,
+      jobPartiallyCompleted: !!jobPartiallyCompleted && !jobCompleted,
       additionalWorkRecommended: !!additionalWorkRecommended,
       billSent: !!billSent,
       billPaid: !!billPaid,
@@ -64,8 +64,8 @@ export async function PUT(
 }
 
 // PATCH — lightweight partial updates used by the calendar:
-//   { action: "complete" }            → mark job done (one-click complete)
-//   { action: "reopen" }              → undo completion
+//   { action: "complete" }            → mark job done (preserves recommendations)
+//   { action: "reopen" }              → undo completion (preserves recommendations)
 //   { scheduledDate: "YYYY-MM-DD" }   → schedule / reschedule (drag & drop)
 //   { scheduledDate: null }           → move back to unscheduled
 //   { scheduledTime: "HH:MM" | null } → set / clear start time
@@ -91,11 +91,9 @@ export async function PATCH(
   if (body.action === "complete") {
     patch.jobCompleted = true;
     patch.jobPartiallyCompleted = false;
-    patch.additionalWorkRecommended = false;
   } else if (body.action === "reopen") {
     patch.jobCompleted = false;
     patch.jobPartiallyCompleted = false;
-    patch.additionalWorkRecommended = false;
   } else if (body.action !== undefined) {
     return NextResponse.json({ error: "Invalid action." }, { status: 400 });
   }

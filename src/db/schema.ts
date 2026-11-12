@@ -54,7 +54,7 @@ export const jobs = pgTable("jobs", {
   employeeName: varchar("employee_name", { length: 150 }).notNull(),
   totalHoursWorked: real("total_hours_worked").notNull(),
   workCompleted: text("work_completed").notNull(),
-  // Status checkboxes (only one active)
+  // Completion status is exclusive; additional work can also be recommended.
   jobCompleted: boolean("job_completed").notNull().default(false),
   jobPartiallyCompleted: boolean("job_partially_completed").notNull().default(false),
   additionalWorkRecommended: boolean("additional_work_recommended").notNull().default(false),
