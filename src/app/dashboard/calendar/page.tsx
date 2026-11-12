@@ -141,6 +141,9 @@ function JobRow({
           <span className={status.badgeClass}>
             {status.icon} {status.label}
           </span>
+          {(job.jobCompleted || job.jobPartiallyCompleted) && job.additionalWorkRecommended && (
+            <span className="badge-blue">+ Additional work</span>
+          )}
         </span>
         <span
           className="block text-xs mt-1 truncate"
@@ -597,7 +600,6 @@ function CalendarInner() {
           ...detailJob,
           jobCompleted: complete,
           jobPartiallyCompleted: false,
-          additionalWorkRecommended: false,
         });
       }
       refresh();
@@ -943,6 +945,9 @@ function CalendarInner() {
                             <span className="text-xs" style={{ color: "var(--text-muted)" }}>
                               👷 {job.employeeName}
                             </span>
+                            {job.additionalWorkRecommended && (
+                              <span className="badge-blue">+ Work recommended</span>
+                            )}
                           </span>
                           <span
                             className="block text-xs mt-1 truncate"
@@ -1327,7 +1332,7 @@ function CalendarInner() {
                                 padding: "5px 7px",
                                 cursor: "pointer",
                               }}
-                              title={`${getDisplayName(job.customer)} — ${job.workCompleted}`}
+                              title={`${getDisplayName(job.customer)} — ${job.workCompleted}${job.additionalWorkRecommended ? " — Additional work recommended" : ""}`}
                             >
                               {job.scheduledTime && (
                                 <div
@@ -1347,6 +1352,7 @@ function CalendarInner() {
                                 }}
                               >
                                 {job.jobCompleted ? "✓ " : ""}
+                                {job.additionalWorkRecommended ? "＋ " : ""}
                                 {getDisplayName(job.customer)}
                               </div>
                               <div
@@ -1685,9 +1691,14 @@ function CalendarInner() {
                     {(() => {
                       const s = getStatus(detailJob);
                       return (
-                        <span className={s.badgeClass}>
-                          {s.icon} {s.label}
-                        </span>
+                        <>
+                          <span className={s.badgeClass}>
+                            {s.icon} {s.label}
+                          </span>
+                          {(detailJob.jobCompleted || detailJob.jobPartiallyCompleted) && detailJob.additionalWorkRecommended && (
+                            <span className="badge-blue">+ Additional work recommended</span>
+                          )}
+                        </>
                       );
                     })()}
                     {detailJob.jobCompleted && detailJob.billPaid && (

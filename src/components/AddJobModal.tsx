@@ -21,7 +21,9 @@ export default function AddJobModal({
   const [employeeName, setEmployeeName] = useState("");
   const [totalHours, setTotalHours] = useState("");
   const [workCompleted, setWorkCompleted] = useState("");
-  const [status, setStatus] = useState<"completed" | "partial" | "additional" | "">("");
+  const [jobCompleted, setJobCompleted] = useState(false);
+  const [jobPartiallyCompleted, setJobPartiallyCompleted] = useState(false);
+  const [additionalWorkRecommended, setAdditionalWorkRecommended] = useState(false);
   const [billStatus, setBillStatus] = useState<"sent" | "paid" | "">("");
   const [additionalDetails, setAdditionalDetails] = useState(
     "Materials used:\n\nAdditional notes:"
@@ -77,11 +79,11 @@ export default function AddJobModal({
           employeeName,
           totalHoursWorked: parseFloat(totalHours),
           workCompleted,
-          jobCompleted: status === "completed",
-          jobPartiallyCompleted: status === "partial",
-          additionalWorkRecommended: status === "additional",
-          billSent: status === "completed" && (billStatus === "sent" || billStatus === "paid"),
-          billPaid: status === "completed" && billStatus === "paid",
+          jobCompleted,
+          jobPartiallyCompleted,
+          additionalWorkRecommended,
+          billSent: jobCompleted && (billStatus === "sent" || billStatus === "paid"),
+          billPaid: jobCompleted && billStatus === "paid",
           additionalDetails,
           scheduledDate: scheduledDate || null,
           scheduledTime: scheduledStartTime || null,
@@ -243,53 +245,66 @@ export default function AddJobModal({
             />
           </div>
 
-          {/* Job Status Checkboxes */}
+          {/* Completion status and the independent additional-work recommendation flag */}
           <div>
             <label className="dr-label mb-3">Job Status *</label>
             <div className="space-y-3">
-              {[
-                { value: "completed", label: "Job Completed" },
-                { value: "partial", label: "Job Partially Completed" },
-                { value: "additional", label: "Additional Work Recommended" },
-              ].map((opt) => (
-                <label
-                  key={opt.value}
-                  className="flex items-center gap-3 cursor-pointer"
-                  style={{
-                    padding: "12px",
-                    borderRadius: "8px",
-                    border: `1px solid ${status === opt.value ? "rgba(249,115,22,0.5)" : "var(--border-color)"}`,
-                    background: status === opt.value ? "rgba(249,115,22,0.08)" : "transparent",
-                    transition: "all 0.15s",
-                  }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={status === opt.value}
-                    onChange={() => {
-                      if (status === opt.value) {
-                        setStatus("");
-                        setBillStatus("");
-                      } else {
-                        setStatus(opt.value as typeof status);
-                        if (opt.value !== "completed") setBillStatus("");
-                      }
+              {([
+                { value: "completed", label: "Job Completed", checked: jobCompleted },
+                { value: "partial", label: "Job Partially Completed", checked: jobPartiallyCompleted },
+                { value: "additional", label: "Additional Work Recommended", checked: additionalWorkRecommended },
+              ] as const).map((opt) => {
+                const selectedColor = opt.value === "additional" ? "#3b82f6" : "var(--accent-orange)";
+                return (
+                  <label
+                    key={opt.value}
+                    className="flex items-center gap-3 cursor-pointer"
+                    style={{
+                      padding: "12px",
+                      borderRadius: "8px",
+                      border: `1px solid ${opt.checked ? (opt.value === "additional" ? "rgba(59,130,246,0.5)" : "rgba(249,115,22,0.5)") : "var(--border-color)"}`,
+                      background: opt.checked ? (opt.value === "additional" ? "rgba(59,130,246,0.08)" : "rgba(249,115,22,0.08)") : "transparent",
+                      transition: "all 0.15s",
                     }}
-                    style={{ accentColor: "var(--accent-orange)", width: "16px", height: "16px" }}
-                  />
-                  <span
-                    className="font-medium text-sm"
-                    style={{ color: status === opt.value ? "var(--accent-orange)" : "var(--text-primary)" }}
                   >
-                    {opt.label}
-                  </span>
-                </label>
-              ))}
+                    <input
+                      type="checkbox"
+                      checked={opt.checked}
+                      onChange={(event) => {
+                        const checked = event.target.checked;
+                        if (opt.value === "completed") {
+                          setJobCompleted(checked);
+                          if (checked) setJobPartiallyCompleted(false);
+                          else setBillStatus("");
+                        } else if (opt.value === "partial") {
+                          setJobPartiallyCompleted(checked);
+                          if (checked) {
+                            setJobCompleted(false);
+                            setBillStatus("");
+                          }
+                        } else {
+                          setAdditionalWorkRecommended(checked);
+                        }
+                      }}
+                      style={{ accentColor: selectedColor, width: "16px", height: "16px" }}
+                    />
+                    <span
+                      className="font-medium text-sm"
+                      style={{ color: opt.checked ? selectedColor : "var(--text-primary)" }}
+                    >
+                      {opt.label}
+                    </span>
+                  </label>
+                );
+              })}
             </div>
+            <p className="text-xs mt-2" style={{ color: "var(--text-muted)" }}>
+              Additional work can be recommended even when a job is marked complete.
+            </p>
           </div>
 
           {/* Billing — only shown when Job Completed */}
-          {status === "completed" && (
+          {jobCompleted && (
             <div
               className="fade-in"
               style={{
@@ -354,7 +369,7 @@ export default function AddJobModal({
             <button
               type="submit"
               className="dr-btn-primary flex-1"
-              disabled={loading || !status || invalidTimeRange}
+              disabled={loading || (!jobCompleted && !jobPartiallyCompleted && !additionalWorkRecommended) || invalidTimeRange}
               style={{ justifyContent: "center" }}
             >
               {loading ? "Saving..." : "Save Job"}

@@ -153,7 +153,7 @@ export default function UpcomingStrip() {
                               : "var(--text-secondary)",
                             textDecoration: job.jobCompleted ? "line-through" : "none",
                           }}
-                          title={`${getDisplayName(job.customer)} — ${job.workCompleted}`}
+                          title={`${getDisplayName(job.customer)} — ${job.workCompleted}${job.additionalWorkRecommended ? " — Additional work recommended" : ""}`}
                         >
                           {job.scheduledTime && (
                             <span style={{ color: "var(--accent-orange)" }}>
@@ -161,6 +161,7 @@ export default function UpcomingStrip() {
                             </span>
                           )}
                           {job.jobCompleted ? "✓ " : ""}
+                          {job.additionalWorkRecommended ? "＋ " : ""}
                           {getDisplayName(job.customer)}
                         </div>
                       ))}

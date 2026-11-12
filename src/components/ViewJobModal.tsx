@@ -57,7 +57,20 @@ export default function ViewJobModal({ job, customerName, onClose }: { job: Job;
       .catch(() => {});
   }, [job.id]);
 
-  const status = job.jobCompleted ? "Completed" : job.jobPartiallyCompleted ? "Partially completed" : job.additionalWorkRecommended ? "Additional work recommended" : "Pending";
+  const status = job.jobCompleted
+    ? "Completed"
+    : job.jobPartiallyCompleted
+      ? "Partially completed"
+      : job.additionalWorkRecommended
+        ? "Additional work recommended"
+        : "Pending";
+  const statusClass = job.jobCompleted
+    ? "badge-success"
+    : job.jobPartiallyCompleted
+      ? "badge-warning"
+      : job.additionalWorkRecommended
+        ? "badge-blue"
+        : "badge-danger";
 
   return (
     <div className="modal-overlay" onClick={event => { if (event.target === event.currentTarget) onClose(); }}>
@@ -75,7 +88,15 @@ export default function ViewJobModal({ job, customerName, onClose }: { job: Job;
           <section><label className="dr-label">Work Completed</label><p style={{ whiteSpace: "pre-wrap" }}>{job.workCompleted || "—"}</p></section>
           <div className="grid grid-cols-2 gap-4">
             <section><label className="dr-label">Hours Worked</label><p>{job.totalHoursWorked}h</p></section>
-            <section><label className="dr-label">Status</label><p>{status}</p></section>
+            <section>
+              <label className="dr-label">Status</label>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className={statusClass}>{status}</span>
+                {(job.jobCompleted || job.jobPartiallyCompleted) && job.additionalWorkRecommended && (
+                  <span className="badge-blue">+ Additional work recommended</span>
+                )}
+              </div>
+            </section>
           </div>
           <section><label className="dr-label">Billing</label><p>{job.billPaid ? "Paid" : job.billSent ? "Bill sent" : "—"}</p></section>
           <section><label className="dr-label">Schedule</label><ScheduledLine date={job.scheduledDate} start={job.scheduledTime} end={job.scheduledEndTime} /></section>
