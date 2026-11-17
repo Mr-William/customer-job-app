@@ -36,6 +36,27 @@ function getStatus(job: CalendarJob): {
   return { label: "Scheduled", color: "#8b949e", badgeClass: "badge-blue", icon: "📅" };
 }
 
+// A job's status dot. Completed jobs keep their green fill, but when additional
+// work is also recommended they gain a blue ring so the follow-up stays visible
+// at a glance (green center, blue around it).
+function StatusDot({ job, size = 8 }: { job: CalendarJob; size?: number }) {
+  const status = getStatus(job);
+  const followUp = job.jobCompleted && job.additionalWorkRecommended;
+  return (
+    <span
+      aria-hidden="true"
+      className="inline-block rounded-full"
+      style={{
+        width: `${size}px`,
+        height: `${size}px`,
+        flexShrink: 0,
+        background: status.color,
+        boxShadow: followUp ? "0 0 0 2px #3b82f6" : undefined,
+      }}
+    />
+  );
+}
+
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 interface DayCell {
@@ -118,15 +139,7 @@ function JobRow({
         onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border-color)")}
       >
         <span className="flex items-center gap-2 flex-wrap">
-          <span
-            className="inline-block rounded-full"
-            style={{
-              width: "8px",
-              height: "8px",
-              background: status.color,
-              flexShrink: 0,
-            }}
-          />
+          <StatusDot job={job} />
           <strong className="text-sm" style={{ color: "var(--text-primary)" }}>
             {getDisplayName(job.customer)}
           </strong>
@@ -901,7 +914,6 @@ function CalendarInner() {
                 </p>
                 <div className="space-y-2" style={{ maxHeight: "280px", overflowY: "auto" }}>
                   {filteredUnscheduled.map((job) => {
-                    const status = getStatus(job);
                     const dragging = dragJobId === job.id;
                     return (
                       <div
@@ -935,10 +947,7 @@ function CalendarInner() {
                         >
                           <span className="flex items-center gap-2 flex-wrap">
                             <span style={{ color: "var(--text-muted)", fontSize: "12px" }}>⠿</span>
-                            <span
-                              className="inline-block rounded-full"
-                              style={{ width: "8px", height: "8px", background: status.color }}
-                            />
+                            <StatusDot job={job} />
                             <strong className="text-sm" style={{ color: "var(--text-primary)" }}>
                               {getDisplayName(job.customer)}
                             </strong>
@@ -1181,17 +1190,9 @@ function CalendarInner() {
                             >
                               {count} job{count !== 1 ? "s" : ""}
                             </span>
-                            <span className="flex gap-1 flex-wrap justify-center">
+                            <span className="flex gap-1.5 flex-wrap justify-center">
                               {dayJobs.slice(0, 4).map((j) => (
-                                <span
-                                  key={j.id}
-                                  className="rounded-full"
-                                  style={{
-                                    width: "7px",
-                                    height: "7px",
-                                    background: getStatus(j).color,
-                                  }}
-                                />
+                                <StatusDot key={j.id} job={j} size={7} />
                               ))}
                               {count > 4 && (
                                 <span
@@ -1240,6 +1241,18 @@ function CalendarInner() {
                       {s.label}
                     </span>
                   ))}
+                  <span className="flex items-center gap-1">
+                    <span
+                      className="inline-block rounded-full"
+                      style={{
+                        width: "8px",
+                        height: "8px",
+                        background: "#22c55e",
+                        boxShadow: "0 0 0 2px #3b82f6",
+                      }}
+                    />
+                    Completed + follow-up
+                  </span>
                   <span className="flex items-center gap-1">⚠️ = heavy day ({HEAVY_DAY_THRESHOLD}+ jobs)</span>
                 </div>
               </>
