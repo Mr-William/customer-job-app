@@ -1,11 +1,12 @@
 "use client";
-import { useState, useCallback } from "react";
+import { useEffect, useRef, useState } from "react";
 import EditJobModal from "@/components/EditJobModal";
 import ViewJobModal from "@/components/ViewJobModal";
 import AddJobModal from "@/components/AddJobModal";
 import PhoneLink from "@/components/PhoneLink";
 import ScheduledLine from "@/components/ScheduledLine";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
+import CustomerNameSearch from "@/components/CustomerNameSearch";
 import { getDisplayName } from "@/lib/customerName";
 
 interface Job {
@@ -56,11 +57,16 @@ function getBillStatus(jobs: Job[]) {
 
 export default function SearchPage() {
   const [searchText, setSearchText] = useState("");
+  const [selectedId, setSelectedId] = useState<number | null>(null);
   const [statusFilter, setStatusFilter] = useState("");
   const [billFilter, setBillFilter] = useState("");
   const [results, setResults] = useState<Customer[]>([]);
   const [searched, setSearched] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  const [searchError, setSearchError] = useState("");
+  const resultRequest = useRef<AbortController | null>(null);
+  useEffect(() => () => resultRequest.current?.abort(), []);
 
   const [sortField, setSortField] = useState<SortField>("name");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
@@ -72,30 +78,66 @@ export default function SearchPage() {
 
   // Edit customer inline
   const [editCustomerId, setEditCustomerId] = useState<number | null>(null);
+  const editorHeading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    if (editCustomerId !== null) editorHeading.current?.focus();
+  }, [editCustomerId]);
   const [editForm, setEditForm] = useState({
     name: "", firstName: "", lastName: "", phone: "", email: "", jobAddress: "",
   });
   const [editLoading, setEditLoading] = useState(false);
 
-  const doSearch = useCallback(async () => {
-    const trimmedSearch = searchText.trim();
-    setSearchText(trimmedSearch);
-    setLoading(true);
-    setSearched(true);
-    try {
-      const params = new URLSearchParams();
-      if (trimmedSearch) params.set("search", trimmedSearch);
-      if (statusFilter) params.set("status", statusFilter);
-      if (billFilter) params.set("bill", billFilter);
-      const res = await fetch(`/api/customers?${params}`);
-      const data = await res.json();
-      setResults(data.customers || []);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
+  function resetResults() {
+    resultRequest.current?.abort();
+    setLoading(false);
+    setSearchError("");
+    setSearched(false);
+    setResults([]);
+    setEditCustomerId(null);
+    setExpandedId(null);
+  }
+
+  function changeName(value: string) {
+    resetResults();
+    setSelectedId(null);
+    setSearchText(value);
+  }
+
+  async function doSearch(id = selectedId, prefill = false) {
+    resultRequest.current?.abort();
+    const controller = new AbortController();
+    resultRequest.current = controller;
+    const params = new URLSearchParams();
+    if (id !== null) {
+      params.set("id", String(id)); // A picked customer, not every customer with this name.
+    } else {
+      const name = searchText.trim();
+      setSearchText(name);
+      if (name) params.set("search", name);
     }
-  }, [searchText, statusFilter, billFilter]);
+    if (statusFilter) params.set("status", statusFilter);
+    if (billFilter) params.set("bill", billFilter);
+    setLoading(true);
+    setSearched(false);
+    setSearchError("");
+    setEditCustomerId(null);
+    try {
+      const res = await fetch(`/api/customers?${params}`, { signal: controller.signal });
+      if (!res.ok) throw new Error("Customer lookup failed");
+      const { customers }: { customers: Customer[] } = await res.json();
+      if (controller.signal.aborted) return;
+      setResults(customers);
+      setSearched(true);
+      if (id !== null && customers[0]) {
+        setSearchText(getDisplayName(customers[0]));
+        if (prefill) startEditCustomer(customers[0]);
+      }
+    } catch {
+      if (!controller.signal.aborted) setSearchError("Could not load customers. Please try again.");
+    } finally {
+      if (!controller.signal.aborted) setLoading(false);
+    }
+  }
 
   function handleSort(field: SortField) {
     if (sortField === field) {
@@ -115,7 +157,7 @@ export default function SearchPage() {
     return sortDir === "asc" ? cmp : -cmp;
   });
 
-  function SortBtn({ field, label }: { field: SortField; label: string }) {
+  function sortButton(field: SortField, label: string) {
     const active = sortField === field;
     return (
       <button
@@ -134,7 +176,7 @@ export default function SearchPage() {
     );
   }
 
-  async function startEditCustomer(c: Customer) {
+  function startEditCustomer(c: Customer) {
     setEditCustomerId(c.id);
     setEditForm({
       name: c.name || "",
@@ -147,17 +189,24 @@ export default function SearchPage() {
   }
 
   async function saveEditCustomer(id: number) {
+    const request = resultRequest.current;
     setEditLoading(true);
+    setSearchError("");
     try {
       const res = await fetch(`/api/customers/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(editForm),
       });
-      if (res.ok) {
-        setEditCustomerId(null);
-        doSearch();
+      if (request?.signal.aborted) return;
+      if (!res.ok) {
+        const data = await res.json();
+        if (!request?.signal.aborted) setSearchError(data.error || "Could not save this customer.");
+        return;
       }
+      void doSearch();
+    } catch {
+      if (!request?.signal.aborted) setSearchError("Could not save this customer. Please try again.");
     } finally {
       setEditLoading(false);
     }
@@ -175,29 +224,28 @@ export default function SearchPage() {
           Search Customers
         </h1>
         <p style={{ color: "var(--text-muted)" }}>
-          Filter by name, phone, job status, or billing status.
+          Search by name or filter by job and billing status. Select a suggested customer to fill in their saved details.
         </p>
       </div>
 
       {/* Search Panel */}
-      <div className="dr-card mb-6">
+      <form className="dr-card mb-6" onSubmit={(e) => { e.preventDefault(); void doSearch(); }}>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+          <CustomerNameSearch
+            value={searchText} status={statusFilter} bill={billFilter}
+            onChange={changeName}
+            onSelect={(customer) => {
+              setSelectedId(customer.id);
+              setSearchText(customer.name);
+              void doSearch(customer.id, true);
+            }}
+          />
           <div>
-            <label className="dr-label">Name or Phone</label>
-            <input
-              className="dr-input"
-              placeholder="Search name or phone..."
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && doSearch()}
-            />
-          </div>
-          <div>
-            <label className="dr-label">Job Status</label>
+            <label className="dr-label" htmlFor="search-status">Job Status</label>
             <select
-              className="dr-input"
+              id="search-status" className="dr-input"
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
+              onChange={(e) => { resetResults(); setStatusFilter(e.target.value); }}
               style={{ cursor: "pointer" }}
             >
               <option value="">All Statuses</option>
@@ -207,11 +255,11 @@ export default function SearchPage() {
             </select>
           </div>
           <div>
-            <label className="dr-label">Billing Status</label>
+            <label className="dr-label" htmlFor="search-bill">Billing Status</label>
             <select
-              className="dr-input"
+              id="search-bill" className="dr-input"
               value={billFilter}
-              onChange={(e) => setBillFilter(e.target.value)}
+              onChange={(e) => { resetResults(); setBillFilter(e.target.value); }}
               style={{ cursor: "pointer" }}
             >
               <option value="">All Billing</option>
@@ -222,20 +270,20 @@ export default function SearchPage() {
           </div>
         </div>
         <div className="flex gap-3">
-          <button onClick={doSearch} className="dr-btn-primary" disabled={loading}>
+          <button type="submit" className="dr-btn-primary" disabled={loading}>
             {loading ? "Searching..." : "🔍 Search"}
           </button>
-          <button
+          <button type="button"
             onClick={() => {
-              setSearchText(""); setStatusFilter(""); setBillFilter("");
-              setResults([]); setSearched(false);
+              changeName(""); setStatusFilter(""); setBillFilter("");
             }}
             className="dr-btn-secondary"
           >
             Clear
           </button>
         </div>
-      </div>
+      </form>
+      {searchError && <p role="alert" className="alert-error mb-4">{searchError}</p>}
 
       {/* Results */}
       {searched && (
@@ -246,10 +294,10 @@ export default function SearchPage() {
             </h2>
             <div className="flex items-center gap-3 text-xs" style={{ color: "var(--text-muted)" }}>
               Sort by:
-              <SortBtn field="name" label="Name" />
-              <SortBtn field="phone" label="Phone" />
-              <SortBtn field="jobs" label="Jobs" />
-              <SortBtn field="date" label="Date" />
+              {sortButton("name", "Name")}
+              {sortButton("phone", "Phone")}
+              {sortButton("jobs", "Jobs")}
+              {sortButton("date", "Date")}
             </div>
           </div>
 
@@ -265,36 +313,36 @@ export default function SearchPage() {
                   {editCustomerId === customer.id ? (
                     /* Inline edit form */
                     <div>
-                      <h3 className="font-semibold mb-4" style={{ color: "var(--accent-orange)" }}>
+                      <h3 ref={editorHeading} tabIndex={-1} className="font-semibold mb-4" style={{ color: "var(--accent-orange)" }}>
                         Editing: {getDisplayName(customer)}
                       </h3>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
                         <div className="sm:col-span-2">
-                          <label className="dr-label">Business / Full Name</label>
-                          <input className="dr-input" value={editForm.name} placeholder="e.g. Acme Corp"
+                          <label className="dr-label" htmlFor="search-edit-name">Business / Full Name</label>
+                          <input id="search-edit-name" className="dr-input" value={editForm.name} placeholder="e.g. Acme Corp"
                             onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))} />
                         </div>
                         <div>
-                          <label className="dr-label">First Name</label>
-                          <input className="dr-input" value={editForm.firstName} placeholder="John"
+                          <label className="dr-label" htmlFor="search-edit-first">First Name</label>
+                          <input id="search-edit-first" className="dr-input" value={editForm.firstName} placeholder="John"
                             onChange={(e) => setEditForm((f) => ({ ...f, firstName: e.target.value }))} />
                         </div>
                         <div>
-                          <label className="dr-label">Last Name</label>
-                          <input className="dr-input" value={editForm.lastName} placeholder="Smith"
+                          <label className="dr-label" htmlFor="search-edit-last">Last Name</label>
+                          <input id="search-edit-last" className="dr-input" value={editForm.lastName} placeholder="Smith"
                             onChange={(e) => setEditForm((f) => ({ ...f, lastName: e.target.value }))} />
                         </div>
                         <div>
-                          <label className="dr-label">Phone</label>
-                          <input className="dr-input" type="tel" value={editForm.phone}
+                          <label className="dr-label" htmlFor="search-edit-phone">Phone</label>
+                          <input id="search-edit-phone" className="dr-input" type="tel" value={editForm.phone}
                             onChange={(e) => setEditForm((f) => ({ ...f, phone: e.target.value }))} />
                           {editForm.phone.trim() && (
                             <div className="text-xs mt-1"><PhoneLink phone={editForm.phone} fallback={null} label="Call number" /></div>
                           )}
                         </div>
                         <div>
-                          <label className="dr-label">Email</label>
-                          <input className="dr-input" value={editForm.email}
+                          <label className="dr-label" htmlFor="search-edit-email">Email</label>
+                          <input id="search-edit-email" className="dr-input" value={editForm.email}
                             onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))} />
                         </div>
                         <div className="sm:col-span-2">
