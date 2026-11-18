@@ -15,3 +15,14 @@ export function getDisplayName(c: {
   const parts = [c.firstName, c.lastName].filter(Boolean);
   return parts.join(" ") || "Unnamed";
 }
+
+/**
+ * Case-insensitive substring match for customer-name suggestions.
+ * Mirrors the server-side search (strpos(lower(name), lower(query)) > 0),
+ * so "john", "JOHN", and "John" all match "John Smith".
+ */
+export function matchesCustomerName(displayName: string, query: string): boolean {
+  const needle = query.trim().toLowerCase();
+  if (!needle) return false;
+  return displayName.toLowerCase().includes(needle);
+}
