@@ -1,7 +1,8 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useId, useMemo, useState, type KeyboardEvent } from "react";
 import PhoneLink from "@/components/PhoneLink";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
+import { matchesCustomerName } from "@/lib/customerName";
 import { hoursBetween } from "@/lib/time";
 
 export interface CustomerOption {
@@ -37,6 +38,10 @@ export default function CalendarAddJobModal({
     scheduledEndTime !== "" &&
     hoursBetween(scheduledTime, scheduledEndTime) === null;
   const [customerName, setCustomerName] = useState("");
+  const [nameOpen, setNameOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
+  const nameInputId = useId();
+  const nameListId = `${nameInputId}-suggestions`;
   const [phone, setPhone] = useState("");
   const [phoneTouched, setPhoneTouched] = useState(false);
   const [jobAddress, setJobAddress] = useState("");
@@ -58,6 +63,51 @@ export default function CalendarAddJobModal({
   const isExistingCustomer = customerOptions.some(
     (c) => c.name.toLowerCase() === customerName.trim().toLowerCase()
   );
+
+  // Case-insensitive substring suggestions, like the Search page lookup:
+  // "john", "JOHN", and "John" all match "John Smith".
+  const nameSuggestions = useMemo(
+    () => customerOptions.filter((c) => matchesCustomerName(c.name, customerName)).slice(0, 8),
+    [customerOptions, customerName]
+  );
+  const showNameSuggestions = nameOpen && customerName.trim().length > 0 && nameSuggestions.length > 0;
+  const activeOptionId =
+    showNameSuggestions && nameSuggestions[activeIndex]
+      ? `${nameListId}-${activeIndex}`
+      : undefined;
+
+  useEffect(() => {
+    if (activeOptionId) document.getElementById(activeOptionId)?.scrollIntoView({ block: "nearest" });
+  }, [activeOptionId]);
+
+  function selectCustomer(option: CustomerOption) {
+    setNameOpen(false);
+    setActiveIndex(-1);
+    handleNameChange(option.name);
+  }
+
+  function handleNameKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.nativeEvent.isComposing) return;
+    if (event.key === "Escape" && showNameSuggestions) {
+      event.preventDefault();
+      setNameOpen(false);
+      setActiveIndex(-1);
+    } else if (event.key === "Enter" && showNameSuggestions && nameSuggestions[activeIndex]) {
+      event.preventDefault();
+      selectCustomer(nameSuggestions[activeIndex]);
+    } else if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      if (!nameSuggestions.length) return;
+      event.preventDefault();
+      setNameOpen(true);
+      if (event.key === "ArrowDown") {
+        setActiveIndex((activeIndex + 1) % nameSuggestions.length);
+      } else {
+        setActiveIndex(
+          activeIndex <= 0 ? nameSuggestions.length - 1 : activeIndex - 1
+        );
+      }
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -184,23 +234,53 @@ export default function CalendarAddJobModal({
 
           {/* Customer name with autocomplete */}
           <div>
-            <label className="dr-label">Customer Name *</label>
-            <input
-              className="dr-input"
-              type="text"
-              placeholder="Start typing to match an existing customer…"
-              list="calendar-customer-names"
-              value={customerName}
-              onChange={(e) => handleNameChange(e.target.value)}
-              required
-            />
-            <datalist id="calendar-customer-names">
-              {customerOptions.map((c) => (
-                <option key={c.name} value={c.name}>
-                  {c.phone || ""}
-                </option>
-              ))}
-            </datalist>
+            <label className="dr-label" htmlFor={nameInputId}>Customer Name *</label>
+            <div className="relative">
+              <input
+                id={nameInputId}
+                className="dr-input"
+                type="text"
+                placeholder="Start typing to match an existing customer…"
+                autoComplete="off"
+                role="combobox"
+                aria-autocomplete="list"
+                aria-expanded={showNameSuggestions}
+                aria-controls={showNameSuggestions ? nameListId : undefined}
+                aria-activedescendant={activeOptionId}
+                value={customerName}
+                onFocus={() => setNameOpen(true)}
+                onBlur={() => { setNameOpen(false); setActiveIndex(-1); }}
+                onKeyDown={handleNameKeyDown}
+                onChange={(e) => { setActiveIndex(-1); setNameOpen(true); handleNameChange(e.target.value); }}
+                required
+              />
+              {showNameSuggestions && (
+                <div className="absolute z-20 mt-1 w-full rounded-lg border border-(--border-color) bg-(--bg-secondary) shadow-lg">
+                  <ul id={nameListId} role="listbox" aria-label="Matching customers" className="max-h-60 overflow-y-auto">
+                    {nameSuggestions.map((c, index) => (
+                      <li key={`${c.name}-${c.phone ?? ""}-${index}`} role="presentation">
+                        <button
+                          type="button"
+                          tabIndex={-1}
+                          role="option"
+                          id={`${nameListId}-${index}`}
+                          aria-selected={activeIndex === index}
+                          className="block w-full cursor-pointer rounded-md px-3 py-2 text-left text-sm aria-selected:bg-orange-500/15"
+                          onMouseEnter={() => setActiveIndex(index)}
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => selectCustomer(c)}
+                        >
+                          <span className="font-medium">{c.name}</span>
+                          {c.phone && (
+                            <span className="block text-xs text-(--text-secondary)">{c.phone}</span>
+                          )}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
             {customerName.trim() !== "" && (
               <p
                 className="text-xs mt-1"
