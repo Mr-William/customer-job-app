@@ -42,7 +42,7 @@ const quickActions = [
     href: "/dashboard/search",
     icon: "🔍",
     label: "Search",
-    desc: "Find customers by name, phone, status, or billing.",
+    desc: "Find customers by name, job status, or billing status.",
     color: "#a78bfa",
   },
   {

@@ -1,87 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { customers, jobs } from "@/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { customers } from "@/db/schema";
+import { searchCustomers } from "@/db/searchCustomers";
 import { getSession } from "@/lib/auth";
-
-export function getDisplayName(c: {
-  name?: string | null;
-  firstName?: string | null;
-  lastName?: string | null;
-}): string {
-  if (c.name) return c.name;
-  const parts = [c.firstName, c.lastName].filter(Boolean);
-  return parts.join(" ") || "Unnamed";
-}
 
 export async function GET(req: NextRequest) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { searchParams } = new URL(req.url);
-  const search = (searchParams.get("search") || "").trim();
-  const statusFilter = searchParams.get("status") || "";
-  const billFilter = searchParams.get("bill") || "";
-  const compact = searchParams.get("compact") === "1";
-
-  let customerList = await db.select().from(customers).orderBy(desc(customers.createdAt));
-
-  // Apply name/phone search filter
-  if (search) {
-    const lower = search.toLowerCase();
-    customerList = customerList.filter((c) => {
-      const displayName = getDisplayName(c).toLowerCase();
-      return displayName.includes(lower) || (c.phone || "").includes(lower);
-    });
+  const params = req.nextUrl.searchParams;
+  const id = params.has("id") ? Number(params.get("id")) : undefined;
+  if (id !== undefined && (!Number.isInteger(id) || id < 1 || id > 2147483647)) {
+    return NextResponse.json({ error: "Invalid customer ID." }, { status: 400 });
   }
 
-  // Compact mode: lightweight list for autocomplete + import comparison
-  if (compact) {
-    return NextResponse.json({
-      customers: customerList.map((c) => ({
-        id: c.id,
-        name: c.name,
-        firstName: c.firstName,
-        lastName: c.lastName,
-        phone: c.phone,
-        email: c.email,
-        jobAddress: c.jobAddress,
-      })),
-    });
-  }
-
-  // Fetch jobs for each customer
-  const result = await Promise.all(
-    customerList.map(async (customer) => {
-      const customerJobs = await db
-        .select()
-        .from(jobs)
-        .where(eq(jobs.customerId, customer.id))
-        .orderBy(desc(jobs.createdAt));
-      return { ...customer, jobs: customerJobs };
-    })
-  );
-
-  // Apply status filter
-  let filtered = result;
-  if (statusFilter === "completed") {
-    filtered = filtered.filter((c) => c.jobs.some((j) => j.jobCompleted));
-  } else if (statusFilter === "partial") {
-    filtered = filtered.filter((c) => c.jobs.some((j) => j.jobPartiallyCompleted));
-  } else if (statusFilter === "additional") {
-    filtered = filtered.filter((c) => c.jobs.some((j) => j.additionalWorkRecommended));
-  }
-
-  // Apply bill filter
-  if (billFilter === "sent") {
-    filtered = filtered.filter((c) => c.jobs.some((j) => j.billSent && !j.billPaid));
-  } else if (billFilter === "paid") {
-    filtered = filtered.filter((c) => c.jobs.some((j) => j.billPaid));
-  } else if (billFilter === "outstanding") {
-    filtered = filtered.filter((c) => c.jobs.some((j) => j.billSent && !j.billPaid));
-  }
-
-  return NextResponse.json({ customers: filtered });
+  return NextResponse.json(await searchCustomers(db, {
+    search: params.get("search") || "",
+    id,
+    status: params.get("status") || "",
+    bill: params.get("bill") || "",
+    suggest: params.get("suggest") === "1",
+    compact: params.get("compact") === "1",
+  }));
 }
 
 export async function POST(req: NextRequest) {
