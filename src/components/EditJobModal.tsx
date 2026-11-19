@@ -1,7 +1,8 @@
 "use client";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { hoursBetween } from "@/lib/time";
 import { uploadJobPhoto, type JobPhoto } from "@/lib/jobPhotos";
+import JobPhotoButtons from "@/components/JobPhotoButtons";
 import JobPhotoGallery from "@/components/JobPhotoGallery";
 
 interface Job {
@@ -49,6 +50,15 @@ export default function EditJobModal({
     const response = await fetch(`/api/jobs/${job.id}/photos`);
     if (response.ok) setPhotos((await response.json()).photos);
   }
+
+  // Load up front so the View Photos count badge is accurate without
+  // having to open the gallery first.
+  useEffect(() => {
+    fetch(`/api/jobs/${job.id}/photos`)
+      .then(response => response.ok ? response.json() : { photos: [] })
+      .then(data => setPhotos(data.photos || []))
+      .catch(() => {});
+  }, [job.id]);
   async function savePhoto() {
     if (!pendingPhoto) return;
     setPhotoSaving(true); setPhotoError("");
@@ -351,12 +361,13 @@ export default function EditJobModal({
               style={{ resize: "vertical" }} />
           </div>
 
-          <div className="flex flex-wrap gap-3">
-            <button type="button" className="dr-btn-secondary" onClick={() => { setPhotoError(""); setPhotoChooserOpen(true); }}>＋ Add Photo</button>
-            <button type="button" className="dr-btn-secondary" onClick={() => { setPhotoError(""); setViewerOpen(true); void loadPhotos(); }}>View Photos</button>
-            <input ref={libraryInput} type="file" accept="image/*" hidden onChange={e => setPendingPhoto(e.target.files?.[0] || null)} />
-            <input ref={cameraInput} type="file" accept="image/*" capture="environment" hidden onChange={e => setPendingPhoto(e.target.files?.[0] || null)} />
-          </div>
+          <JobPhotoButtons
+            photoCount={photos.length}
+            onAdd={() => { setPhotoError(""); setPhotoChooserOpen(true); }}
+            onView={() => { setPhotoError(""); setViewerOpen(true); void loadPhotos(); }}
+          />
+          <input ref={libraryInput} type="file" accept="image/*" hidden onChange={e => setPendingPhoto(e.target.files?.[0] || null)} />
+          <input ref={cameraInput} type="file" accept="image/*" capture="environment" hidden onChange={e => setPendingPhoto(e.target.files?.[0] || null)} />
           {photoChooserOpen && <div className="flex gap-2"><button type="button" className="dr-btn-secondary" onClick={() => {setPhotoChooserOpen(false);cameraInput.current?.click()}}>Take a new photo</button><button type="button" className="dr-btn-secondary" onClick={() => {setPhotoChooserOpen(false);libraryInput.current?.click()}}>Choose from device</button><button type="button" className="dr-btn-secondary" onClick={() => setPhotoChooserOpen(false)}>Cancel</button></div>}
           {pendingPhoto && <div style={{padding:16,border:"1px solid var(--border-color)",borderRadius:8}}>
             <p className="text-sm mb-2">Add {pendingPhoto.name}</p>

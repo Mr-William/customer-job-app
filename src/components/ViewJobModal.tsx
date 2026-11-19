@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import ScheduledLine from "@/components/ScheduledLine";
+import JobPhotoButtons from "@/components/JobPhotoButtons";
 import JobPhotoGallery from "@/components/JobPhotoGallery";
 import { uploadJobPhoto, type JobPhoto } from "@/lib/jobPhotos";
 
@@ -102,12 +103,13 @@ export default function ViewJobModal({ job, customerName, onClose }: { job: Job;
           <section><label className="dr-label">Schedule</label><ScheduledLine date={job.scheduledDate} start={job.scheduledTime} end={job.scheduledEndTime} /></section>
           <section><label className="dr-label">Additional Details</label><p style={{ whiteSpace: "pre-wrap" }}>{job.additionalDetails || "—"}</p></section>
 
-          <div className="flex gap-3">
-            <button type="button" className="dr-btn-secondary" onClick={() => setChooser(true)}>＋ Add Photo</button>
-            <button type="button" className="dr-btn-secondary" onClick={() => setGallery(true)}>View Photos ({photos.length})</button>
-            <input ref={picker} type="file" accept="image/*" hidden onChange={event => setFile(event.target.files?.[0] || null)} />
-            <input ref={camera} type="file" accept="image/*" capture="environment" hidden onChange={event => setFile(event.target.files?.[0] || null)} />
-          </div>
+          <JobPhotoButtons
+            photoCount={photos.length}
+            onAdd={() => setChooser(true)}
+            onView={() => setGallery(true)}
+          />
+          <input ref={picker} type="file" accept="image/*" hidden onChange={event => setFile(event.target.files?.[0] || null)} />
+          <input ref={camera} type="file" accept="image/*" capture="environment" hidden onChange={event => setFile(event.target.files?.[0] || null)} />
 
           {chooser && <div className="flex gap-2">
             <button type="button" className="dr-btn-secondary" onClick={() => { setChooser(false); camera.current?.click(); }}>Take a new photo</button>
