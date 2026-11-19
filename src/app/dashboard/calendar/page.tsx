@@ -852,17 +852,16 @@ function CalendarInner() {
             </button>
           </div>
         ) : (
-          <ul style={{ listStyle: "disc", paddingLeft: "24px", margin: 0 }}>
+          <div className="space-y-2">
             {selectedJobs.map((job) => (
-              <li key={job.id} className="mb-2" style={{ color: "var(--text-muted)" }}>
-                <JobRow
-                  job={job}
-                  onOpen={() => setDetailJob(job)}
-                  onToggleComplete={toggleComplete}
-                />
-              </li>
+              <JobRow
+                key={job.id}
+                job={job}
+                onOpen={() => setDetailJob(job)}
+                onToggleComplete={toggleComplete}
+              />
             ))}
-          </ul>
+          </div>
         )}
       </div>
 
