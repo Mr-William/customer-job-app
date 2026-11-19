@@ -853,13 +853,25 @@ function CalendarInner() {
           </div>
         ) : (
           <div className="space-y-2">
-            {selectedJobs.map((job) => (
-              <JobRow
-                key={job.id}
-                job={job}
-                onOpen={() => setDetailJob(job)}
-                onToggleComplete={toggleComplete}
-              />
+            {selectedJobs.map((job, index) => (
+              <div key={job.id}>
+                {index > 0 && (
+                  <div
+                    aria-hidden="true"
+                    style={{
+                      height: "1px",
+                      margin: "0 0 8px",
+                      background:
+                        "linear-gradient(to right, transparent, var(--border-color), transparent)",
+                    }}
+                  />
+                )}
+                <JobRow
+                  job={job}
+                  onOpen={() => setDetailJob(job)}
+                  onToggleComplete={toggleComplete}
+                />
+              </div>
             ))}
           </div>
         )}
