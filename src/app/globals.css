@@ -244,6 +244,96 @@ body {
   transition: all 0.15s;
 }
 
+/* Job photo actions — deliberately much more prominent than the
+   generic secondary button so they are easy to spot in the modals. */
+.job-photos-section {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 16px;
+}
+
+.dr-btn-photo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex: 1 1 160px;
+  min-height: 48px;
+  padding: 12px 20px;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.2;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.15s, box-shadow 0.15s;
+}
+
+.dr-btn-photo svg {
+  flex: 0 0 auto;
+}
+
+.dr-btn-photo--add {
+  background: var(--accent-orange);
+  color: #fff;
+  box-shadow: 0 4px 16px rgba(249, 115, 22, 0.4);
+}
+
+.dr-btn-photo--add:hover {
+  background: var(--accent-orange-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(249, 115, 22, 0.5);
+}
+
+.dr-btn-photo--view {
+  background: var(--accent-blue-light);
+  color: #fff;
+  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.4);
+}
+
+.dr-btn-photo--view:hover {
+  background: #2563eb;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(59, 130, 246, 0.5);
+}
+
+.dr-btn-photo:active {
+  transform: scale(0.98);
+}
+
+.dr-btn-photo:focus-visible {
+  outline: 2px solid var(--accent-orange-light);
+  outline-offset: 2px;
+}
+
+.dr-btn-photo:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.dr-btn-photo__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.28);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dr-btn-photo,
+  .dr-btn-photo--add:hover,
+  .dr-btn-photo--view:hover,
+  .dr-btn-photo:active {
+    transform: none;
+  }
+}
+
 /* Cards */
 .dr-card {
   background: var(--bg-secondary);
