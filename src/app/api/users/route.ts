@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
-import { db } from "@/db";
-import { users } from "@/db/schema";
-import { desc } from "drizzle-orm";
+import { db, ensureLastActiveColumn } from "@/db";
+import { listUserAccounts } from "@/db/userActivity";
 import { getSession } from "@/lib/auth";
 
 // GET /api/users — admin only: list all user accounts (no password hashes)
@@ -14,18 +13,8 @@ export async function GET() {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const list = await db
-    .select({
-      id: users.id,
-      firstName: users.firstName,
-      lastName: users.lastName,
-      email: users.email,
-      role: users.role,
-      approved: users.approved,
-      createdAt: users.createdAt,
-    })
-    .from(users)
-    .orderBy(desc(users.createdAt));
+  await ensureLastActiveColumn();
+  const list = await listUserAccounts(db);
 
   return NextResponse.json({ users: list });
 }

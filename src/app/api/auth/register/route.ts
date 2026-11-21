@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/db";
+import { db, ensureLastActiveColumn } from "@/db";
 import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { hashPassword } from "@/lib/auth";
@@ -24,6 +24,8 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
+
+    await ensureLastActiveColumn();
 
     // Check existing user
     const existing = await db
