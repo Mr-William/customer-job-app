@@ -662,11 +662,69 @@ pm2 restart jobtracker  # Restart with new code
 | 502 Bad Gateway | Ensure PM2 is running (`pm2 status`) and Nginx proxy is pointing to port 3000 |
 | Domain not resolving | Check DNS A record points to your server's public IP |
 | SSL certificate error | Run `sudo certbot renew --force-renewal` |
-| Permission denied on clone | Use HTTPS URL or set up SSH keys for GitHub |
+| Permission denied on clone | Use HTTPS URL or set up SSH keys for GitHub (the repo is public, so the HTTPS URL needs no credentials) |
+| `git pull` only works with `sudo` | The checkout is owned by `root`. Reclaim it once: `sudo chown -R deploy:deploy /home/deploy/customer-job-app`, then pull as `deploy`. See “`git pull` only works with `sudo`” below. |
+| `git pull` says “dubious ownership” | Same root-owned checkout as above — `sudo chown -R deploy:deploy /home/deploy/customer-job-app`. Do **not** use `safe.directory`; it hides the warning but the pull still fails. |
 | Drizzle migration fails | Ensure the PostgreSQL user has GRANT ALL on the database and schema |
 | Photo is too large or saving a photo fails with a 413 error | Set `client_max_body_size 20m;` in the Nginx server block, then run `sudo nginx -t && sudo systemctl reload nginx`. The app itself accepts images up to 15 MB. See “Photo uploads” below. |
 | Server could not store a photo | Check `pm2 logs jobtracker --lines 50 --nostream`. Ensure the `deploy` user can write to `JOB_PHOTO_DIR`, or to `data/job-photos` under the app directory when that variable is not set. |
 | No address suggestions while typing | The app server likely cannot reach the geocoder. Check with `curl -sS -m 5 -o /dev/null -w '%{http_code}\n' 'https://photon.komoot.io/api/?q=test'` (expect `200`) and `pm2 logs jobtracker --lines 50 --nostream \| grep address-suggestions` for the exact cause. Suggestions still work in the browser when the server is blocked, and a fallback (US Census geocoder) covers complete addresses. See "Address suggestions" below. |
+
+### `git pull` only works with `sudo`
+
+If a plain `git pull` in `~/customer-job-app` refuses to run as `deploy`, the
+checkout belongs to `root`. The usual messages are:
+
+```text
+fatal: detected dubious ownership in repository at '/home/deploy/customer-job-app'
+To add an exception for this directory, call:
+        git config --global --add safe.directory /home/deploy/customer-job-app
+```
+
+or, once that exception has been added:
+
+```text
+error: cannot open '.git/FETCH_HEAD': Permission denied
+```
+
+Cause: part of the repository is owned by `root` instead of `deploy` — nearly
+always from running a step through `sudo` (`sudo git clone`, `sudo git pull`,
+`sudo npm install`, `sudo npm run build`). Git deliberately refuses to operate on
+a repository owned by a different user, and even with that check bypassed it
+cannot write `.git/FETCH_HEAD`, `.git/index` or new objects.
+
+**Do not "fix" this with `safe.directory`.** That only silences the warning; the
+pull then fails on its first write. Give the files back to `deploy` instead:
+
+```bash
+# once, from an admin shell
+sudo chown -R deploy:deploy /home/deploy/customer-job-app
+
+# confirm: both lines should say deploy deploy
+ls -ld /home/deploy/customer-job-app /home/deploy/customer-job-app/.git
+
+# then run the normal update as deploy, with no sudo
+sudo -u deploy git -C /home/deploy/customer-job-app pull origin main
+```
+
+Then check for any other root-owned leftovers under the home directory — a root
+build leaves `.next/` and `node_modules/` unwritable, and a root PM2 daemon keeps
+writing logs `deploy` cannot read:
+
+```bash
+sudo find /home/deploy -maxdepth 3 -user root -printf '%u %p\n'
+sudo pm2 list        # should be empty: jobtracker must live in deploy's PM2, not root's
+pm2 list             # as deploy — jobtracker should be here and online
+```
+
+Fix each path that shows up with the same command, e.g.
+`sudo chown -R deploy:deploy /home/deploy/customer-job-app/.next`. If
+`sudo pm2 list` shows `jobtracker`, follow the PM2 note above to move it into
+`deploy`'s process table.
+
+Prevention: run `git`, `npm`, `npm run build` and `pm2` as `deploy`. Use `sudo`
+only for OS-level work — `apt`, `systemctl`, `nginx`, `certbot`, and editing files
+under `/etc`.
 
 ### Photo uploads
 

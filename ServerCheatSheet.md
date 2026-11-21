@@ -117,6 +117,8 @@ curl -sI https://yourdomain.com | head -8 # check security headers
 ```bash
 cd ~/customer-job-app
 git pull origin main
+# ⚠️ No sudo. If this fails with "dubious ownership" or "Permission denied",
+# the checkout is root-owned: sudo chown -R deploy:deploy ~/customer-job-app
 npm install
 npm audit          # fix criticals before continuing
 npm run build
