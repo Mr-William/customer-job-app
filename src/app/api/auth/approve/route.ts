@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/db";
+import { db, ensureLastActiveColumn } from "@/db";
 import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import {
@@ -18,6 +18,8 @@ export async function GET(req: NextRequest) {
       status: 400,
     });
   }
+
+  await ensureLastActiveColumn();
 
   const [user] = await db
     .select()

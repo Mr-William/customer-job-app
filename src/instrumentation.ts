@@ -5,9 +5,11 @@ export async function register() {
       ensureDefaultAdmin,
       ensureCalendarColumns,
       ensureCalendarFeedTokenColumn,
+      ensureLastActiveColumn,
     } = await import("@/db");
     await ensureCalendarColumns();
     await ensureCalendarFeedTokenColumn();
+    await ensureLastActiveColumn();
     await ensureDefaultAdmin();
   }
 }

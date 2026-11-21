@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/db";
+import { db, ensureLastActiveColumn } from "@/db";
 import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
@@ -34,6 +34,8 @@ export async function PATCH(
       { status: 400 }
     );
   }
+
+  await ensureLastActiveColumn();
 
   const [target] = await db
     .select()
@@ -95,6 +97,8 @@ export async function DELETE(
       { status: 400 }
     );
   }
+
+  await ensureLastActiveColumn();
 
   const [target] = await db
     .select()

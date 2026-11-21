@@ -1,6 +1,10 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  formatLastLoginDate,
+  formatLastLoginTitle,
+} from "@/lib/userActivity";
 
 interface AppUser {
   id: number;
@@ -10,6 +14,7 @@ interface AppUser {
   role: string;
   approved: boolean;
   createdAt: string;
+  lastActiveAt: string | null;
 }
 
 export default function UsersPage() {
@@ -168,7 +173,7 @@ export default function UsersPage() {
           <table className="w-full text-sm" style={{ borderCollapse: "collapse" }}>
             <thead>
               <tr style={{ borderBottom: "1px solid var(--border-color)" }}>
-                {["Name", "Email", "Role", "Status", "Created", ""].map((h) => (
+                {["Name", "Email", "Role", "Status", "Created", "Last Login", ""].map((h) => (
                   <th
                     key={h}
                     className="text-left px-3 py-2 font-medium"
@@ -214,6 +219,13 @@ export default function UsersPage() {
                     </td>
                     <td className="px-3 py-3" style={{ color: "var(--text-muted)" }}>
                       {new Date(u.createdAt).toLocaleDateString()}
+                    </td>
+                    <td
+                      className="px-3 py-3"
+                      style={{ color: "var(--text-muted)" }}
+                      title={formatLastLoginTitle(u.lastActiveAt)}
+                    >
+                      {formatLastLoginDate(u.lastActiveAt)}
                     </td>
                     <td className="px-3 py-3">
                       <div className="flex gap-2 justify-end">

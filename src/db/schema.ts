@@ -26,6 +26,7 @@ export const users = pgTable(
     approvalToken: text("approval_token"),
     // Opaque bearer token used by read-only calendar subscription clients.
     calendarFeedToken: text("calendar_feed_token"),
+    lastActiveAt: timestamp("last_active_at"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (table) => [uniqueIndex("users_calendar_feed_token_unique").on(table.calendarFeedToken)]

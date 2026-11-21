@@ -67,6 +67,26 @@ export async function ensureCalendarFeedTokenColumn() {
   }
 }
 
+let lastActiveColumnReady: Promise<void> | null = null;
+
+// Track the last time each user logged in or used an active session on the site.
+export async function ensureLastActiveColumn() {
+  if (!process.env.DATABASE_URL) return;
+  if (!lastActiveColumnReady) {
+    lastActiveColumnReady = (async () => {
+      try {
+        await getDb().execute(
+          sql`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "last_active_at" TIMESTAMP`
+        );
+      } catch (error) {
+        lastActiveColumnReady = null;
+        console.error("Failed to ensure last active column:", error);
+      }
+    })();
+  }
+  return lastActiveColumnReady;
+}
+
 // ─── Default admin bootstrap ─────────────────────────────────────────────────
 // Exported for instrumentation.ts — runs at server startup only (not during build)
 

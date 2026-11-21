@@ -36,11 +36,27 @@ export function verifyToken(token: string): JWTPayload | null {
   }
 }
 
+async function touchSessionActivity(userId: number) {
+  if (!process.env.DATABASE_URL) return;
+  try {
+    const [{ db, ensureLastActiveColumn }, { recordUserActivity }] =
+      await Promise.all([import("@/db"), import("@/db/userActivity")]);
+    await ensureLastActiveColumn();
+    await recordUserActivity(db, userId);
+  } catch (error) {
+    console.error("Failed to record user activity:", error);
+  }
+}
+
 export async function getSession(): Promise<JWTPayload | null> {
   const cookieStore = await cookies();
   const token = cookieStore.get(COOKIE_NAME)?.value;
   if (!token) return null;
-  return verifyToken(token);
+  const payload = verifyToken(token);
+  if (payload && typeof payload.userId === "number") {
+    await touchSessionActivity(payload.userId);
+  }
+  return payload;
 }
 
 export function setSessionCookie(token: string) {

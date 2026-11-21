@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/db";
+import { db, ensureLastActiveColumn } from "@/db";
 import { users } from "@/db/schema";
+import { recordUserActivity } from "@/db/userActivity";
 import { eq } from "drizzle-orm";
 import { verifyPassword, signToken, setSessionCookie } from "@/lib/auth";
 
@@ -15,6 +16,8 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
+
+    await ensureLastActiveColumn();
 
     const [user] = await db
       .select()
@@ -45,6 +48,12 @@ export async function POST(req: NextRequest) {
         },
         { status: 403 }
       );
+    }
+
+    try {
+      await recordUserActivity(db, user.id, { force: true });
+    } catch (activityErr) {
+      console.error("Failed to update last login:", activityErr);
     }
 
     const token = signToken({
